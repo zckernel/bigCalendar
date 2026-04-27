@@ -1,0 +1,43 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Room Calendar</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { overflow: hidden; background: #f0f0f0; font-family: monospace; }
+    #wrapper {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      cursor: grab;
+    }
+    #wrapper.grabbing { cursor: grabbing; }
+    #canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      display: block;
+    }
+    #vscroll {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 12px;
+      height: 100vh;
+      overflow-y: scroll;
+      z-index: 10;
+    }
+    #vscroll-inner { width: 1px; }
+  </style>
+</head>
+<body>
+<div id="wrapper">
+  <canvas id="canvas"></canvas>
+  <div id="vscroll"><div id="vscroll-inner"></div></div>
+</div>
+<script type="module" src="{% static 'bigCalendar/js/main.js' %}"></script>
+</body>
+</html>
