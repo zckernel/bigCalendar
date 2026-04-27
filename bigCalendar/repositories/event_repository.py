@@ -15,3 +15,12 @@ def get_updated_since(since_dt):
         .filter(updated_at__gt=since_dt)
         .values('id', 'room_id', 'event_type', 'event_start', 'event_end')
     )
+
+
+def update_type(event_id, event_type):
+    updated = Event.objects.filter(pk=event_id).update(event_type=event_type)
+    if not updated:
+        return None
+    return Event.objects.filter(pk=event_id).values(
+        'id', 'room_id', 'event_type', 'event_start', 'event_end'
+    ).first()

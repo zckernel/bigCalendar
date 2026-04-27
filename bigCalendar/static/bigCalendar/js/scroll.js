@@ -99,20 +99,25 @@ export class ScrollManager {
       this.offsetY = vscroll.scrollTop; this._onScroll();
     });
 
-    let drag = false, sx, sy, sox, soy;
+    let drag = false, moved = false, sx, sy, sox, soy;
     wrapper.addEventListener('mousedown', (e) => {
       if (e.target === vscroll) return;
-      drag = true; sx = e.clientX; sy = e.clientY; sox = this.offsetX; soy = this.offsetY;
+      drag = true; moved = false;
+      sx = e.clientX; sy = e.clientY; sox = this.offsetX; soy = this.offsetY;
       wrapper.classList.add('grabbing');
     });
     window.addEventListener('mousemove', (e) => {
       if (!drag) return;
+      if (!moved && (Math.abs(e.clientX - sx) > 4 || Math.abs(e.clientY - sy) > 4)) moved = true;
       this.offsetX = Math.max(0, sox + (sx - e.clientX));
       this.offsetY = soy + (sy - e.clientY);
       this._clampY(); vscroll.scrollTop = this.offsetY;
       this._checkBounds(); this._onScroll();
     });
-    window.addEventListener('mouseup', () => { drag = false; wrapper.classList.remove('grabbing'); });
+    window.addEventListener('mouseup', (e) => {
+      if (drag && !moved && this.onGridClick) this.onGridClick(e);
+      drag = false; wrapper.classList.remove('grabbing');
+    });
 
     let tx, ty, tox, toy;
     wrapper.addEventListener('touchstart', (e) => {

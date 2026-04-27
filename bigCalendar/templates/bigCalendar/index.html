@@ -31,12 +31,44 @@
       z-index: 10;
     }
     #vscroll-inner { width: 1px; }
+    #type-popup {
+      display: none;
+      position: fixed;
+      z-index: 100;
+      background: #fff;
+      border: 1px solid #bbb;
+      border-radius: 6px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+      padding: 6px;
+      gap: 4px;
+      flex-direction: column;
+      min-width: 140px;
+    }
+    #type-popup.visible { display: flex; }
+    #type-popup button {
+      border: none;
+      border-radius: 4px;
+      padding: 7px 12px;
+      font: bold 11px monospace;
+      cursor: pointer;
+      text-align: left;
+      transition: opacity .15s;
+    }
+    #type-popup button:hover { opacity: .8; }
+    #type-popup .btn-booked      { background: #1E88E5; color: #fff; }
+    #type-popup .btn-maintenance { background: #E53935; color: #fff; }
+    #type-popup .btn-empty       { background: #FDD835; color: #333; }
   </style>
 </head>
 <body>
 <div id="wrapper">
   <canvas id="canvas"></canvas>
   <div id="vscroll"><div id="vscroll-inner"></div></div>
+</div>
+<div id="type-popup">
+  <button class="btn-booked">Booked</button>
+  <button class="btn-maintenance">Maintenance</button>
+  <button class="btn-empty">Empty</button>
 </div>
 <script type="module" src="{% static 'bigCalendar/js/main.js' %}"></script>
 </body>

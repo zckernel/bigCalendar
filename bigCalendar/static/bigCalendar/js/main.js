@@ -2,13 +2,14 @@ import * as store    from './store.js';
 import * as api      from './api.js';
 import { connect as wsConnect } from './websocket.js';
 import { ScrollManager }        from './scroll.js';
-import { render }               from './renderer.js';
+import { render, hitTestEvent } from './renderer.js';
 
 const canvas       = document.getElementById('canvas');
 const ctx          = canvas.getContext('2d');
 const wrapper      = document.getElementById('wrapper');
 const vscroll      = document.getElementById('vscroll');
 const vscrollInner = document.getElementById('vscroll-inner');
+const popup        = document.getElementById('type-popup');
 
 let W = 0, H = 0, rafPending = false;
 
@@ -28,6 +29,57 @@ function resize() {
   sm.resize(W, H);
 }
 
+// ── popup ────────────────────────────────────────────────────────────────────
+
+function showPopup(x, y, event) {
+  popup.style.left = (x + 8) + 'px';
+  popup.style.top  = (y + 8) + 'px';
+  popup.classList.add('visible');
+  popup._targetEvent = event;
+}
+
+function hidePopup() {
+  popup.classList.remove('visible');
+  popup._targetEvent = null;
+}
+
+popup.addEventListener('click', async (e) => {
+  const btn = e.target.closest('button');
+  if (!btn || !popup._targetEvent) return;
+  const typeMap = { 'btn-booked': 'booked', 'btn-maintenance': 'maintenance', 'btn-empty': 'empty' };
+  const newType = Object.entries(typeMap).find(([cls]) => btn.classList.contains(cls))?.[1];
+  if (!newType) return;
+
+  const ev = popup._targetEvent;
+  hidePopup();
+
+  store.applyUpdates([{
+    id: ev.id, room_id: ev.roomId,
+    event_type: newType,
+    event_start: ev.start.toISOString().slice(0, 10),
+    event_end:   ev.end.toISOString().slice(0, 10),
+  }]);
+  scheduleRender();
+
+  try {
+    await api.updateEvent(ev.id, newType);
+  } catch {
+    store.applyUpdates([{
+      id: ev.id, room_id: ev.roomId,
+      event_type: ev.type,
+      event_start: ev.start.toISOString().slice(0, 10),
+      event_end:   ev.end.toISOString().slice(0, 10),
+    }]);
+    scheduleRender();
+  }
+});
+
+document.addEventListener('mousedown', (e) => {
+  if (!popup.contains(e.target)) hidePopup();
+});
+
+// ── init ─────────────────────────────────────────────────────────────────────
+
 async function init() {
   resize();
   window.addEventListener('resize', resize);
@@ -45,6 +97,13 @@ async function init() {
   store.setEvents(events);
   sm.setNumRooms(rooms.length);
   scheduleRender();
+
+  sm.onGridClick = (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const ev = hitTestEvent(e.clientX - rect.left, e.clientY - rect.top, sm, store);
+    if (ev) showPopup(e.clientX, e.clientY, ev);
+    else hidePopup();
+  };
 
   wsConnect((msg) => {
     if (msg.type === 'events_changed') {

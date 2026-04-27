@@ -7,6 +7,18 @@ def get_events_for_range(start: date, end: date):
     return [_serialize(r) for r in rows]
 
 
+VALID_TYPES = {'empty', 'booked', 'maintenance'}
+
+
+def update_event_type(event_id: int, event_type: str):
+    if event_type not in VALID_TYPES:
+        return None, 'invalid type'
+    row = event_repository.update_type(event_id, event_type)
+    if row is None:
+        return None, 'not found'
+    return _serialize(row), None
+
+
 def get_events_updated_since(since_dt: datetime):
     rows = event_repository.get_updated_since(since_dt)
     return [_serialize(r) for r in rows]

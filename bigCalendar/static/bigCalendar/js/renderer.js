@@ -2,6 +2,18 @@ import { CELL_W, CELL_H, HEADER_H, ROOM_COL_W, EVENT_PAD, DAYS_OF_WEEK, EVENT_CO
 
 const MS = 86400000;
 
+export function hitTestEvent(canvasX, canvasY, sm, store) {
+  if (canvasY < HEADER_H || canvasX < ROOM_COL_W) return null;
+  const roomIdx = sm.firstRowIndex + Math.floor((canvasY - HEADER_H + sm.rowOffset) / CELL_H);
+  const rooms = store.getRooms();
+  if (roomIdx < 0 || roomIdx >= rooms.length) return null;
+  const dayIdx = sm.firstColIndex + Math.floor((canvasX - ROOM_COL_W + sm.colOffset) / CELL_W);
+  if (dayIdx < 0 || dayIdx >= sm.windowDays.length) return null;
+  const clickedDay = sm.windowDays[dayIdx].getTime();
+  const events = store.getEventsForRoom(rooms[roomIdx].id);
+  return events.find(ev => ev.start.getTime() <= clickedDay && clickedDay <= ev.end.getTime()) || null;
+}
+
 export function render(ctx, W, H, sm, store) {
   ctx.clearRect(0, 0, W, H);
   _drawGrid(ctx, W, H, sm, store);
