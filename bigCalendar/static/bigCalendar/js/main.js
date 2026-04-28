@@ -1,10 +1,12 @@
 import * as store    from './store.js';
 import * as api      from './api.js';
-import { connect as wsConnect } from './websocket.js';
-import { ScrollManager }        from './scroll.js';
-import { render, hitTestEvent } from './renderer.js';
+import { connect as wsConnect }        from './websocket.js';
+import { ScrollManager }               from './scroll.js';
+import { render, hitTestEvent }        from './renderer.js';
+import { init as initDrag, getDragState } from './drag.js';
 
 const canvas       = document.getElementById('canvas');
+const dragCanvas   = document.getElementById('drag-canvas');
 const ctx          = canvas.getContext('2d');
 const wrapper      = document.getElementById('wrapper');
 const vscroll      = document.getElementById('vscroll');
@@ -16,7 +18,7 @@ let W = 0, H = 0, rafPending = false;
 function scheduleRender() {
   if (rafPending) return;
   rafPending = true;
-  requestAnimationFrame(() => { rafPending = false; render(ctx, W, H, sm, store); });
+  requestAnimationFrame(() => { rafPending = false; render(ctx, W, H, sm, store, getDragState()); });
 }
 
 const sm = new ScrollManager(wrapper, vscroll, vscrollInner, scheduleRender);
@@ -24,8 +26,10 @@ const sm = new ScrollManager(wrapper, vscroll, vscrollInner, scheduleRender);
 function resize() {
   W = window.innerWidth;
   H = window.innerHeight;
-  canvas.width  = W;
-  canvas.height = H;
+  canvas.width      = W;
+  canvas.height     = H;
+  dragCanvas.width  = W;
+  dragCanvas.height = H;
   sm.resize(W, H);
 }
 
@@ -53,24 +57,12 @@ popup.addEventListener('click', async (e) => {
   const ev = popup._targetEvent;
   hidePopup();
 
-  store.applyUpdates([{
-    id: ev.id, room_id: ev.roomId,
-    event_type: newType,
-    event_start: ev.start.toISOString().slice(0, 10),
-    event_end:   ev.end.toISOString().slice(0, 10),
-  }]);
-  scheduleRender();
-
   try {
-    await api.updateEvent(ev.id, newType);
-  } catch {
-    store.applyUpdates([{
-      id: ev.id, room_id: ev.roomId,
-      event_type: ev.type,
-      event_start: ev.start.toISOString().slice(0, 10),
-      event_end:   ev.end.toISOString().slice(0, 10),
-    }]);
+    const updated = await api.updateEvent(ev.id, newType);
+    store.applyUpdates([updated]);
     scheduleRender();
+  } catch {
+    // API failed — UI stays unchanged
   }
 });
 
@@ -97,6 +89,10 @@ async function init() {
   store.setEvents(events);
   sm.setNumRooms(rooms.length);
   scheduleRender();
+
+  initDrag(sm, canvas, dragCanvas, scheduleRender, (ev, clientX, clientY) => {
+    showPopup(clientX, clientY, ev);
+  });
 
   sm.onGridClick = (e) => {
     const rect = canvas.getBoundingClientRect();

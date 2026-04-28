@@ -18,11 +18,13 @@ export function setEvents(data) {
 export function applyUpdates(events) {
   for (const e of events) {
     const parsed = _parse(e);
+    for (const arr of _eventsByRoom.values()) {
+      const idx = arr.findIndex(x => x.id === e.id);
+      if (idx >= 0) { arr.splice(idx, 1); break; }
+    }
     if (!_eventsByRoom.has(e.room_id)) _eventsByRoom.set(e.room_id, []);
     const arr = _eventsByRoom.get(e.room_id);
-    const idx = arr.findIndex(x => x.id === e.id);
-    if (idx >= 0) arr[idx] = parsed;
-    else arr.push(parsed);
+    arr.push(parsed);
     arr.sort(_byStart);
   }
 }

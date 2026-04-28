@@ -35,13 +35,31 @@ def api_event_update(request, event_id):
         return JsonResponse({'error': 'method not allowed'}, status=405)
     try:
         body = json.loads(request.body)
-        event_type = body['event_type']
-    except (json.JSONDecodeError, KeyError):
-        return JsonResponse({'error': 'event_type required'}, status=400)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'invalid json'}, status=400)
 
-    event, err = event_service.update_event_type(event_id, event_type)
-    if err == 'not found':
-        return JsonResponse({'error': err}, status=404)
-    if err:
-        return JsonResponse({'error': err}, status=400)
-    return JsonResponse({'event': event})
+    if 'event_type' in body:
+        event, err = event_service.update_event_type(event_id, body['event_type'])
+        if err == 'not found':
+            return JsonResponse({'error': err}, status=404)
+        if err:
+            return JsonResponse({'error': err}, status=400)
+        return JsonResponse({'event': event})
+
+    if 'room_id' in body:
+        try:
+            room_id = int(body['room_id'])
+            start = date.fromisoformat(body['event_start'])
+            end = date.fromisoformat(body['event_end'])
+        except (KeyError, ValueError):
+            return JsonResponse({'error': 'room_id, event_start, event_end required'}, status=400)
+        event, err = event_service.move_event(event_id, room_id, start, end)
+        if err == 'not found':
+            return JsonResponse({'error': err}, status=404)
+        if err == 'overlap':
+            return JsonResponse({'error': err}, status=409)
+        if err:
+            return JsonResponse({'error': err}, status=400)
+        return JsonResponse({'event': event})
+
+    return JsonResponse({'error': 'event_type or room_id required'}, status=400)

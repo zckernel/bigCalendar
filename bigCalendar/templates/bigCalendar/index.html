@@ -15,12 +15,13 @@
       cursor: grab;
     }
     #wrapper.grabbing { cursor: grabbing; }
-    #canvas {
+    #canvas, #drag-canvas {
       position: absolute;
       top: 0;
       left: 0;
       display: block;
     }
+    #drag-canvas { pointer-events: none; }
     #vscroll {
       position: absolute;
       top: 0;
@@ -63,6 +64,7 @@
 <body>
 <div id="wrapper">
   <canvas id="canvas"></canvas>
+  <canvas id="drag-canvas"></canvas>
   <div id="vscroll"><div id="vscroll-inner"></div></div>
 </div>
 <div id="type-popup">

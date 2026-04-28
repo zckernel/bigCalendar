@@ -19,6 +19,15 @@ def update_event_type(event_id: int, event_type: str):
     return _serialize(row), None
 
 
+def move_event(event_id: int, room_id: int, start: date, end: date):
+    if event_repository.check_overlap(room_id, start, end, event_id):
+        return None, 'overlap'
+    row = event_repository.update_position(event_id, room_id, start, end)
+    if row is None:
+        return None, 'not found'
+    return _serialize(row), None
+
+
 def get_events_updated_since(since_dt: datetime):
     rows = event_repository.get_updated_since(since_dt)
     return [_serialize(r) for r in rows]

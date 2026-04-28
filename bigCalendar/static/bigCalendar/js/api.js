@@ -12,6 +12,17 @@ export async function fetchEvents(start, end) {
   return data.events;
 }
 
+export async function moveEvent(id, roomId, start, end) {
+  const res = await fetch(`/api/events/${id}/`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ room_id: roomId, event_start: start, event_end: end }),
+  });
+  if (!res.ok) throw new Error('move failed');
+  const data = await res.json();
+  return data.event;
+}
+
 export async function updateEvent(id, eventType) {
   const res = await fetch(`/api/events/${id}/`, {
     method: 'PATCH',

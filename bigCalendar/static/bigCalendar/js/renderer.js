@@ -14,18 +14,46 @@ export function hitTestEvent(canvasX, canvasY, sm, store) {
   return events.find(ev => ev.start.getTime() <= clickedDay && clickedDay <= ev.end.getTime()) || null;
 }
 
-export function render(ctx, W, H, sm, store) {
+export function render(ctx, W, H, sm, store, dragState = null) {
   ctx.clearRect(0, 0, W, H);
-  _drawGrid(ctx, W, H, sm, store);
+  _drawGrid(ctx, W, H, sm, store, dragState);
   _drawRoomNames(ctx, H, sm, store);
   _drawHeader(ctx, W, sm);
   _drawCorner(ctx);
 }
 
-function _drawGrid(ctx, W, H, sm, store) {
+export function renderGhost(dragCtx, W, H, sm, dragState) {
+  dragCtx.clearRect(0, 0, W, H);
+  if (!dragState || !dragState.targetStart) return;
+
+  const { targetRoomIdx, targetStart, targetEnd, hasOverlap } = dragState;
+  const rowScreenIdx = targetRoomIdx - sm.firstRowIndex;
+  const y = HEADER_H + rowScreenIdx * CELL_H - sm.rowOffset;
+  if (y + CELL_H < HEADER_H || y > H) return;
+
+  const si = Math.round((targetStart.getTime() - sm.windowStart.getTime()) / MS);
+  const ei = Math.round((targetEnd.getTime()   - sm.windowStart.getTime()) / MS);
+  const x0 = ROOM_COL_W + (si - sm.firstColIndex) * CELL_W - sm.colOffset;
+  const x1 = ROOM_COL_W + (ei - sm.firstColIndex + 1) * CELL_W - sm.colOffset;
+  const cx0 = Math.max(x0, ROOM_COL_W);
+  const cx1 = Math.min(x1, W);
+  if (cx1 <= cx0) return;
+
+  const evY = y + EVENT_PAD;
+  const evH = CELL_H - EVENT_PAD * 2;
+
+  dragCtx.fillStyle = hasOverlap ? 'rgba(200,0,0,0.45)' : 'rgba(80,80,80,0.35)';
+  dragCtx.fillRect(cx0, evY, cx1 - cx0, evH);
+  dragCtx.strokeStyle = hasOverlap ? '#c00' : '#555';
+  dragCtx.lineWidth = 2;
+  dragCtx.strokeRect(cx0, evY, cx1 - cx0, evH);
+}
+
+function _drawGrid(ctx, W, H, sm, store, dragState) {
   const rooms = store.getRooms();
   const vRows = sm.visibleRows();
   const vCols = sm.visibleCols();
+  const dragId = dragState?.ev?.id ?? null;
 
   ctx.strokeStyle = '#ddd';
 
@@ -37,7 +65,7 @@ function _drawGrid(ctx, W, H, sm, store) {
     ctx.fillStyle = (roomIdx % 2 === 0) ? '#ffffff' : '#f8f8f8';
     ctx.fillRect(ROOM_COL_W, y, W - ROOM_COL_W, CELL_H);
 
-    _drawEvents(ctx, W, sm, store.getEventsForRoom(rooms[roomIdx].id), y);
+    _drawEvents(ctx, W, sm, store.getEventsForRoom(rooms[roomIdx].id), y, dragId);
 
     for (let ci = 0; ci < vCols; ci++) {
       ctx.strokeRect(ROOM_COL_W + ci * CELL_W - sm.colOffset, y, CELL_W, CELL_H);
@@ -45,7 +73,7 @@ function _drawGrid(ctx, W, H, sm, store) {
   }
 }
 
-function _drawEvents(ctx, W, sm, events, rowY) {
+function _drawEvents(ctx, W, sm, events, rowY, dragId) {
   if (!events.length) return;
   const evY = rowY + EVENT_PAD;
   const evH = CELL_H - EVENT_PAD * 2;
@@ -60,6 +88,11 @@ function _drawEvents(ctx, W, sm, events, rowY) {
     const cx0 = Math.max(x0, ROOM_COL_W);
     const cx1 = Math.min(x1, W);
     if (cx1 <= cx0) continue;
+
+    if (ev.id === dragId) {
+      _drawHatching(ctx, cx0, evY, cx1 - cx0, evH);
+      continue;
+    }
 
     ctx.fillStyle = EVENT_COLORS[ev.type] || '#aaa';
     ctx.fillRect(cx0, evY, cx1 - cx0, evH);
@@ -77,6 +110,25 @@ function _drawEvents(ctx, W, sm, events, rowY) {
       ctx.restore();
     }
   }
+}
+
+function _drawHatching(ctx, x, y, w, h) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x, y, w, h);
+  ctx.clip();
+  ctx.fillStyle = '#ccc';
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = '#aaa';
+  ctx.lineWidth = 1;
+  const step = 5;
+  ctx.beginPath();
+  for (let i = -h; i < w + h; i += step) {
+    ctx.moveTo(x + i, y);
+    ctx.lineTo(x + i + h, y + h);
+  }
+  ctx.stroke();
+  ctx.restore();
 }
 
 function _drawRoomNames(ctx, H, sm, store) {

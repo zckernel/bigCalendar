@@ -82,6 +82,10 @@ Payload on change:
 { "type": "events_changed", "events": [...] }
 ```
 
+## License
+
+Free to use for non-commercial projects. For commercial use, please contact the author at [zckernel@gmail.com](mailto:zckernel@gmail.com).
+
 ## Database Schema
 
 ```sql

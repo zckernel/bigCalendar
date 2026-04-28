@@ -50,6 +50,19 @@ export class ScrollManager {
     this.offsetX = BUFFER_DAYS * CELL_W;
   }
 
+  scroll(dx, dy) {
+    if (dx !== 0) {
+      this.offsetX = Math.max(0, this.offsetX + dx);
+      this._checkBounds();
+    }
+    if (dy !== 0) {
+      this.offsetY += dy;
+      this._clampY();
+      this._vscroll.scrollTop = this.offsetY;
+    }
+    this._onScroll();
+  }
+
   _checkBounds() {
     const threshold = BUFFER_DAYS * CELL_W * 0.5;
     const rightEdge = (this.windowDays.length - this.visibleCols()) * CELL_W;
@@ -102,6 +115,7 @@ export class ScrollManager {
     let drag = false, moved = false, sx, sy, sox, soy;
     wrapper.addEventListener('mousedown', (e) => {
       if (e.target === vscroll) return;
+      if (this.onDragIntercept && this.onDragIntercept(e)) return;
       drag = true; moved = false;
       sx = e.clientX; sy = e.clientY; sox = this.offsetX; soy = this.offsetY;
       wrapper.classList.add('grabbing');
