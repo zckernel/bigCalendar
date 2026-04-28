@@ -84,7 +84,12 @@ Payload on change:
 
 ## License
 
-Free to use for non-commercial projects. For commercial use, please contact the author at [zckernel@gmail.com](mailto:zckernel@gmail.com).
+This project is licensed under the Business Source License 1.1 (BSL).
+
+- Free for non-commercial use  
+- Commercial use requires a separate license  
+- Contact: zckernel@gmail.com  
+- Converts to MIT on 2036-01-01
 
 ## Database Schema
 
