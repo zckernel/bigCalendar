@@ -1,6 +1,7 @@
 import * as store    from './store.js';
 import * as api      from './api.js';
-import { connect as wsConnect }        from './websocket.js';
+import { connect as wsConnect }  from './websocket.js';
+import { connect as sseConnect } from './sse.js';
 import { ScrollManager }               from './scroll.js';
 import { render, hitTestEvent }        from './renderer.js';
 import { init as initDrag, getDragState } from './drag.js';
@@ -101,7 +102,8 @@ async function init() {
     else hidePopup();
   };
 
-  wsConnect((msg) => {
+  const connect = window.REALTIME_TRANSPORT === 'sse' ? sseConnect : wsConnect;
+  connect((msg) => {
     if (msg.type === 'events_changed') {
       store.applyUpdates(msg.events);
       scheduleRender();

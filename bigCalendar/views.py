@@ -1,14 +1,41 @@
+import asyncio
 import json
-from datetime import date
-from django.http import JsonResponse
+from datetime import date, datetime, timezone
+from django.conf import settings
+from django.http import JsonResponse, StreamingHttpResponse
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET
+from asgiref.sync import sync_to_async
 from bigCalendar.services import room_service, event_service
 
 
 def index(request):
-    return render(request, 'bigCalendar/index.html')
+    return render(request, 'bigCalendar/index.html', {
+        'realtime_transport': settings.REALTIME_TRANSPORT,
+    })
+
+
+async def api_stream(request):
+    get_updated = sync_to_async(event_service.get_events_updated_since)
+
+    async def stream():
+        last_check = datetime.now(timezone.utc)
+        while True:
+            await asyncio.sleep(2)
+            now = datetime.now(timezone.utc)
+            events = await get_updated(last_check)
+            last_check = now
+            if events:
+                data = json.dumps({'type': 'events_changed', 'events': events})
+                yield f'data: {data}\n\n'
+            else:
+                yield ': heartbeat\n\n'
+
+    response = StreamingHttpResponse(stream(), content_type='text/event-stream')
+    response['Cache-Control'] = 'no-cache'
+    response['X-Accel-Buffering'] = 'no'
+    return response
 
 
 @require_GET

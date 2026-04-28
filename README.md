@@ -82,6 +82,36 @@ Payload on change:
 { "type": "events_changed", "events": [...] }
 ```
 
+## Realtime Transport
+
+The update delivery mechanism is controlled by the `REALTIME_TRANSPORT` environment variable.
+
+| Value | Default | Requires |
+|---|---|---|
+| `redis` | yes | Redis container, Django Channels |
+| `sse` | no | Nothing extra |
+
+Edit `bigCalendar_app/config.py`:
+
+```python
+REALTIME_TRANSPORT = 'redis'  # or 'sse'
+```
+
+### When to use `redis`
+
+- You run multiple server processes / workers
+- You need true bidirectional communication in the future
+- You already have Redis in your infrastructure
+
+### When to use `sse`
+
+- Single-process deployment (one Daphne instance)
+- You want to eliminate the Redis dependency
+- Simpler infrastructure: no broker, no Channels layer needed
+- Updates are server → client only (which is all this app does)
+
+Both modes poll the database every 2 seconds and push changes to all connected clients. The user experience is identical.
+
 ## License
 
 This project is licensed under the Business Source License 1.1 (BSL).

@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+from bigCalendar_app.config import REALTIME_TRANSPORT
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -71,14 +72,15 @@ TEMPLATES = [
 WSGI_APPLICATION = 'bigCalendar_app.wsgi.application'
 ASGI_APPLICATION = 'bigCalendar_app.asgi.application'
 
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            'hosts': [('redis', 6379)],
+if REALTIME_TRANSPORT == 'redis':
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                'hosts': [('redis', 6379)],
+            },
         },
-    },
-}
+    }
 
 
 # Database
