@@ -1,0 +1,8 @@
+confluent-kafka
+redis
+mysql-connector-python
+django
+mysqlclient
+channels
+channels-redis
+daphne
