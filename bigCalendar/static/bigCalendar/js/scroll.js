@@ -135,14 +135,18 @@ export class ScrollManager {
 
     let tx, ty, tox, toy;
     wrapper.addEventListener('touchstart', (e) => {
+      if (e.touches.length !== 1) return;
+      e.preventDefault();
       tx = e.touches[0].clientX; ty = e.touches[0].clientY;
       tox = this.offsetX; toy = this.offsetY;
-    }, { passive: true });
+    }, { passive: false });
     wrapper.addEventListener('touchmove', (e) => {
+      if (e.touches.length !== 1) return;
+      e.preventDefault();
       this.offsetX = Math.max(0, tox + (tx - e.touches[0].clientX));
       this.offsetY = toy + (ty - e.touches[0].clientY);
       this._clampY(); vscroll.scrollTop = this.offsetY;
       this._checkBounds(); this._onScroll();
-    }, { passive: true });
+    }, { passive: false });
   }
 }
