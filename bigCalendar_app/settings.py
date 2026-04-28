@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 from pathlib import Path
 from bigCalendar_app.config import REALTIME_TRANSPORT
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -95,11 +96,11 @@ if REALTIME_TRANSPORT == 'redis':
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.mysql",
-        "NAME": "app",
-        "USER": "app",
-        "PASSWORD": "secret",
-        "HOST": "mysql",   # ім’я контейнера!
-        "PORT": "3306",
+        "NAME": os.getenv("DB_NAME", "app"),
+        "USER": os.getenv("DB_USER", "app"),
+        "PASSWORD": os.getenv("DB_PASSWORD", "secret"),
+        "HOST": os.getenv("DB_HOST", "mysql"),
+        "PORT": os.getenv("DB_PORT", "3306"),
     }
 }
 
