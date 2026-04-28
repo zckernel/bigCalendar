@@ -2,6 +2,8 @@
 
 A real-time room booking calendar built with Django Channels, WebSockets, and a Canvas-based frontend.
 
+**Demo:** https://zckernel.com/bigcalendar/
+
 ## Features
 
 - Canvas-rendered calendar for 1000 rooms across a 360-day range (±180 days from today)
