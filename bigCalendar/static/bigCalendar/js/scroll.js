@@ -133,21 +133,23 @@ export class ScrollManager {
       drag = false; wrapper.classList.remove('grabbing');
     });
 
-    let prevTx, prevTy;
+    let tx, ty, tox, toy;
     wrapper.addEventListener('touchstart', (e) => {
       if (e.touches.length !== 1) return;
       e.preventDefault();
-      prevTx = e.touches[0].clientX;
-      prevTy = e.touches[0].clientY;
+      tx = e.touches[0].clientX; ty = e.touches[0].clientY;
+      tox = this.offsetX; toy = this.offsetY;
     }, { passive: false });
     wrapper.addEventListener('touchmove', (e) => {
       if (e.touches.length !== 1) return;
       e.preventDefault();
-      const dx = prevTx - e.touches[0].clientX;
-      const dy = prevTy - e.touches[0].clientY;
-      prevTx = e.touches[0].clientX;
-      prevTy = e.touches[0].clientY;
-      this.scroll(dx, dy);
+      const rawX = Math.max(0, tox + (tx - e.touches[0].clientX));
+      this.offsetX = rawX;
+      this._checkBounds();
+      if (this.offsetX !== rawX) tox += this.offsetX - rawX;
+      this.offsetY = toy + (ty - e.touches[0].clientY);
+      this._clampY(); vscroll.scrollTop = this.offsetY;
+      this._onScroll();
     }, { passive: false });
   }
 }
