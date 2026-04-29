@@ -2,9 +2,7 @@ services:
   bigcalendar:
     build:
       context: .
-    command: >
-      sh -c "python manage.py collectstatic --$$noinput &&
-             daphne -b 0.0.0.0 -p 8000 bigCalendar_app.asgi:application"
+    command: sh -c 'python manage.py collectstatic --noinput && daphne -b 0.0.0.0 -p 8000 bigCalendar_app.asgi:application'
     volumes:
       - /opt/bigCalendar/staticfiles:/app/staticfiles
     ports:
