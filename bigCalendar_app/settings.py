@@ -33,8 +33,8 @@ ALLOWED_HOSTS = [
     "0.0.0.0",
     "zckernel.com",
     "www.zckernel.com",
+    "192.168.1.103"
 ]
-
 
 # Application definition
 

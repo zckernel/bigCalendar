@@ -64,7 +64,7 @@ export class ScrollManager {
   }
 
   _checkBounds() {
-    const threshold = BUFFER_DAYS * CELL_W * 0.5;
+    const threshold = BUFFER_DAYS * CELL_W * 0.25;
     const rightEdge = (this.windowDays.length - this.visibleCols()) * CELL_W;
     if      (this.offsetX > rightEdge - threshold) this._shiftRight();
     else if (this.offsetX < threshold)             this._shiftLeft();
@@ -133,16 +133,34 @@ export class ScrollManager {
       drag = false; wrapper.classList.remove('grabbing');
     });
 
-    let tx, ty, tox, toy;
+    let tx, ty, tox, toy, tMoved, tDragging, _lpTimer;
     wrapper.addEventListener('touchstart', (e) => {
       if (e.touches.length !== 1) return;
       e.preventDefault();
       tx = e.touches[0].clientX; ty = e.touches[0].clientY;
       tox = this.offsetX; toy = this.offsetY;
+      tMoved = false; tDragging = false;
+      _lpTimer = setTimeout(() => {
+        _lpTimer = null;
+        if (!tMoved && this.onDragIntercept) {
+          if (this.onDragIntercept({ clientX: tx, clientY: ty })) {
+            tDragging = true;
+            if (navigator.vibrate) navigator.vibrate(40);
+          }
+        }
+      }, 350);
     }, { passive: false });
     wrapper.addEventListener('touchmove', (e) => {
       if (e.touches.length !== 1) return;
       e.preventDefault();
+      if (!tMoved && (Math.abs(e.touches[0].clientX - tx) > 6 || Math.abs(e.touches[0].clientY - ty) > 6)) {
+        tMoved = true;
+        if (_lpTimer) { clearTimeout(_lpTimer); _lpTimer = null; }
+      }
+      if (tDragging) {
+        if (this.onDragTouchMove) this.onDragTouchMove(e.touches[0].clientX, e.touches[0].clientY);
+        return;
+      }
       const rawX = Math.max(0, tox + (tx - e.touches[0].clientX));
       this.offsetX = rawX;
       this._checkBounds();
@@ -151,5 +169,14 @@ export class ScrollManager {
       this._clampY(); vscroll.scrollTop = this.offsetY;
       this._onScroll();
     }, { passive: false });
+    wrapper.addEventListener('touchend', (e) => {
+      if (_lpTimer) { clearTimeout(_lpTimer); _lpTimer = null; }
+      if (tDragging) {
+        if (this.onDragTouchEnd) this.onDragTouchEnd();
+      } else if (!tMoved && this.onGridClick) {
+        this.onGridClick({ clientX: tx, clientY: ty });
+      }
+      tDragging = false;
+    }, { passive: true });
   }
 }

@@ -1,10 +1,11 @@
-import * as store    from './store.js';
-import * as api      from './api.js';
-import { connect as wsConnect }  from './websocket.js';
-import { connect as sseConnect } from './sse.js';
-import { ScrollManager }               from './scroll.js';
-import { render, hitTestEvent }        from './renderer.js';
-import { init as initDrag, getDragState } from './drag.js';
+import * as store    from './store.js?v=1.0.8';
+import * as api      from './api.js?v=1.0.8';
+import { connect as wsConnect }  from './websocket.js?v=1.0.8';
+import { connect as sseConnect } from './sse.js?v=1.0.8';
+import { ScrollManager }               from './scroll.js?v=1.0.8';
+import { render, hitTestEvent }        from './renderer.js?v=1.0.8';
+import { init as initDrag, getDragState } from './drag.js?v=1.0.8';
+import { startMove, hasActive, getInterp } from './animations.js?v=1.0.8';
 
 const canvas       = document.getElementById('canvas');
 const dragCanvas   = document.getElementById('drag-canvas');
@@ -19,7 +20,11 @@ let W = 0, H = 0, rafPending = false;
 function scheduleRender() {
   if (rafPending) return;
   rafPending = true;
-  requestAnimationFrame(() => { rafPending = false; render(ctx, W, H, sm, store, getDragState()); });
+  requestAnimationFrame(() => {
+    rafPending = false;
+    render(ctx, W, H, sm, store, getDragState(), getInterp);
+    if (hasActive()) scheduleRender();
+  });
 }
 
 const sm = new ScrollManager(wrapper, vscroll, vscrollInner, scheduleRender);
@@ -31,6 +36,8 @@ function resize() {
   canvas.height     = H;
   dragCanvas.width  = W;
   dragCanvas.height = H;
+  wrapper.style.width  = W + 'px';
+  wrapper.style.height = H + 'px';
   sm.resize(W, H);
 }
 
@@ -76,6 +83,7 @@ document.addEventListener('mousedown', (e) => {
 async function init() {
   resize();
   window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', () => setTimeout(resize, 100));
 
   const today = new Date();
   const start = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 180);
@@ -105,7 +113,8 @@ async function init() {
   const connect = window.REALTIME_TRANSPORT === 'sse' ? sseConnect : wsConnect;
   connect((msg) => {
     if (msg.type === 'events_changed') {
-      store.applyUpdates(msg.events);
+      const moved = store.applyUpdates(msg.events);
+      for (const m of moved) startMove(m.ev, m.fromStart, m.fromEnd, m.fromRoomId);
       scheduleRender();
     }
   });

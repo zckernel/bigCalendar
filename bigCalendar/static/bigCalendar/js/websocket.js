@@ -8,7 +8,7 @@ export function connect(onUpdate) {
 
 function _connect() {
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-  const ws = new WebSocket(`${proto}://${location.host}/ws/events/`);
+  const ws = new WebSocket(`${proto}://${location.host}/bigcalendar/ws/events/`);
 
   ws.onmessage = (e) => {
     if (_onUpdate) _onUpdate(JSON.parse(e.data));

@@ -16,17 +16,21 @@ export function setEvents(data) {
 }
 
 export function applyUpdates(events) {
+  const moved = [];
   for (const e of events) {
     const parsed = _parse(e);
+    let old = null;
     for (const arr of _eventsByRoom.values()) {
       const idx = arr.findIndex(x => x.id === e.id);
-      if (idx >= 0) { arr.splice(idx, 1); break; }
+      if (idx >= 0) { old = arr[idx]; arr.splice(idx, 1); break; }
     }
     if (!_eventsByRoom.has(e.room_id)) _eventsByRoom.set(e.room_id, []);
     const arr = _eventsByRoom.get(e.room_id);
     arr.push(parsed);
     arr.sort(_byStart);
+    if (old) moved.push({ ev: parsed, fromStart: old.start, fromEnd: old.end, fromRoomId: old.roomId });
   }
+  return moved;
 }
 
 export function getEventsForRoom(roomId) {

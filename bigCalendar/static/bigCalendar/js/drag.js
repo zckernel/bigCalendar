@@ -1,11 +1,12 @@
-import { CELL_W, CELL_H, HEADER_H, ROOM_COL_W } from './config.js';
-import { hitTestEvent, renderGhost } from './renderer.js';
-import * as store from './store.js';
-import * as api from './api.js';
+import { CELL_W, CELL_H, HEADER_H, ROOM_COL_W } from './config.js?v=1.0.8';
+import { hitTestEvent, renderGhost } from './renderer.js?v=1.0.8';
+import * as store from './store.js?v=1.0.8';
+import * as api from './api.js?v=1.0.8';
+import { startMove, cancelMove } from './animations.js?v=1.0.8';
 
 const MS = 86400000;
-const EDGE_PX    = 60;   // px от края — начало авто-скролла
-const MAX_SPEED  = 15;   // px/frame
+const EDGE_PX   = 60;  // px от края — начало авто-скролла
+const MAX_SPEED = 15;  // px/frame
 
 const _fmt = d =>
   `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -19,19 +20,19 @@ export function init(sm, canvas, dragCanvas, scheduleRender, onEventClick) {
   const dragCtx = dragCanvas.getContext('2d');
 
   sm.onDragIntercept = (e) => {
-    const rect   = canvas.getBoundingClientRect();
-    const cx     = e.clientX - rect.left;
-    const cy     = e.clientY - rect.top;
-    const ev     = hitTestEvent(cx, cy, sm, store);
+    const rect    = canvas.getBoundingClientRect();
+    const canvasX = e.clientX - rect.left;
+    const canvasY = e.clientY - rect.top;
+    const ev      = hitTestEvent(canvasX, canvasY, sm, store);
     if (!ev) return false;
 
     // сколько дней от начала события до точки клика — чтобы событие не прыгало при drag'е
-    const dayIdx      = sm.firstColIndex + Math.floor((cx - ROOM_COL_W + sm.colOffset) / CELL_W);
-    const clickDay    = sm.windowDays[Math.max(0, Math.min(sm.windowDays.length - 1, dayIdx))];
-    const clickOffset = Math.round((clickDay.getTime() - ev.start.getTime()) / MS);
+    const colIdx          = sm.firstColIndex + Math.floor((canvasX - ROOM_COL_W + sm.colOffset) / CELL_W);
+    const dayUnderCursor  = sm.windowDays[Math.max(0, Math.min(sm.windowDays.length - 1, colIdx))];
+    const clickDayOffset  = Math.round((dayUnderCursor.getTime() - ev.start.getTime()) / MS);
 
     _drag = {
-      ev, clickOffset, onEventClick,
+      ev, clickDayOffset, onEventClick,
       startClientX: e.clientX,
       startClientY: e.clientY,
       curClientX: e.clientX,
@@ -58,62 +59,102 @@ export function init(sm, canvas, dragCanvas, scheduleRender, onEventClick) {
 
   window.addEventListener('mouseup', async (e) => {
     if (!_drag) return;
-    const d = _drag;
+    const drag = _drag;
     _drag = null;
 
     document.body.style.cursor = '';
-    d.dragCtx.clearRect(0, 0, d.canvas.width, d.canvas.height);
 
     // клик (мышь почти не двигалась) — показываем попап смены типа
-    const dist = Math.hypot(e.clientX - d.startClientX, e.clientY - d.startClientY);
+    const dist = Math.hypot(e.clientX - drag.startClientX, e.clientY - drag.startClientY);
     if (dist < 5) {
-      d.scheduleRender();
-      if (d.onEventClick) d.onEventClick(d.ev, e.clientX, e.clientY);
+      drag.dragCtx.clearRect(0, 0, drag.canvas.width, drag.canvas.height);
+      drag.scheduleRender();
+      if (drag.onEventClick) drag.onEventClick(drag.ev, e.clientX, e.clientY);
       return;
     }
 
-    if (d.hasOverlap) { d.scheduleRender(); return; }
+    if (drag.hasOverlap) { _snapBack(drag); return; }
+
+    drag.dragCtx.clearRect(0, 0, drag.canvas.width, drag.canvas.height);
 
     const rooms      = store.getRooms();
-    const targetRoom = rooms[d.targetRoomIdx];
-    if (!targetRoom) { d.scheduleRender(); return; }
+    const targetRoom = rooms[drag.targetRoomIdx];
+    if (!targetRoom) { drag.scheduleRender(); return; }
 
     const unchanged =
-      targetRoom.id === d.ev.roomId &&
-      d.targetStart.getTime() === d.ev.start.getTime();
-    if (unchanged) { d.scheduleRender(); return; }
+      targetRoom.id === drag.ev.roomId &&
+      drag.targetStart.getTime() === drag.ev.start.getTime();
+    if (unchanged) { drag.scheduleRender(); return; }
 
     try {
       const updated = await api.moveEvent(
-        d.ev.id, targetRoom.id,
-        _fmt(d.targetStart), _fmt(d.targetEnd),
+        drag.ev.id, targetRoom.id,
+        _fmt(drag.targetStart), _fmt(drag.targetEnd),
       );
       store.applyUpdates([updated]);
+      cancelMove(drag.ev.id);
     } catch {
       // сервер отклонил (гонка overlap) — UI без изменений
     }
-    d.scheduleRender();
+    drag.scheduleRender();
   });
+
+  sm.onDragTouchMove = (clientX, clientY) => {
+    if (!_drag) return;
+    _drag.curClientX = clientX;
+    _drag.curClientY = clientY;
+    _recalc();
+    _scheduleGhost();
+  };
+
+  sm.onDragTouchEnd = async () => {
+    if (!_drag) return;
+    const drag = _drag;
+    _drag = null;
+
+    if (drag.hasOverlap) { _snapBack(drag); return; }
+
+    drag.dragCtx.clearRect(0, 0, drag.canvas.width, drag.canvas.height);
+
+    const rooms      = store.getRooms();
+    const targetRoom = rooms[drag.targetRoomIdx];
+    if (!targetRoom) { drag.scheduleRender(); return; }
+
+    const unchanged =
+      targetRoom.id === drag.ev.roomId &&
+      drag.targetStart.getTime() === drag.ev.start.getTime();
+    if (unchanged) { drag.scheduleRender(); return; }
+
+    try {
+      const updated = await api.moveEvent(
+        drag.ev.id, targetRoom.id,
+        _fmt(drag.targetStart), _fmt(drag.targetEnd),
+      );
+      store.applyUpdates([updated]);
+      cancelMove(drag.ev.id);
+    } catch {}
+    drag.scheduleRender();
+  };
 }
 
 // пересчёт целевой позиции относительно текущего viewport
 function _recalc() {
-  const { ev, clickOffset, sm, canvas } = _drag;
-  const rect   = canvas.getBoundingClientRect();
-  const cx     = _drag.curClientX - rect.left;
+  const { ev, clickDayOffset, sm, canvas } = _drag;
+  const rect    = canvas.getBoundingClientRect();
+  const canvasX = _drag.curClientX - rect.left;
 
   // день под курсором в текущем viewport
-  const dayIdx    = sm.firstColIndex + Math.floor((cx - ROOM_COL_W + sm.colOffset) / CELL_W);
-  const dayUnder  = sm.windowDays[Math.max(0, Math.min(sm.windowDays.length - 1, dayIdx))];
+  const colIdx         = sm.firstColIndex + Math.floor((canvasX - ROOM_COL_W + sm.colOffset) / CELL_W);
+  const dayUnderCursor = sm.windowDays[Math.max(0, Math.min(sm.windowDays.length - 1, colIdx))];
 
-  const durMs = ev.end.getTime() - ev.start.getTime();
-  _drag.targetStart   = new Date(dayUnder.getTime() - clickOffset * MS);
-  _drag.targetEnd     = new Date(_drag.targetStart.getTime() + durMs);
-  _drag.targetRoomIdx = _roomIdxAt(_drag.curClientY, canvas, sm);
+  const durationMs      = ev.end.getTime() - ev.start.getTime();
+  _drag.targetStart     = new Date(dayUnderCursor.getTime() - clickDayOffset * MS);
+  _drag.targetEnd       = new Date(_drag.targetStart.getTime() + durationMs);
+  _drag.targetRoomIdx   = _roomIdxAt(_drag.curClientY, canvas, sm);
 
-  const room = store.getRooms()[_drag.targetRoomIdx];
-  _drag.hasOverlap = room
-    ? _hasOverlap(room.id, _drag.targetStart, _drag.targetEnd, ev.id)
+  const targetRoom  = store.getRooms()[_drag.targetRoomIdx];
+  _drag.hasOverlap  = targetRoom
+    ? _hasOverlap(targetRoom.id, _drag.targetStart, _drag.targetEnd, ev.id)
     : true;
 }
 
@@ -125,32 +166,32 @@ function _scheduleGhost() {
     if (!_drag) return;
 
     // edge scroll
-    const rect = _drag.canvas.getBoundingClientRect();
-    const cx   = _drag.curClientX - rect.left;
-    const cy   = _drag.curClientY - rect.top;
-    const dx   = _edgeSpeedX(cx, _drag.canvas.width);
-    const dy   = _edgeSpeed(cy, _drag.canvas.height);
+    const rect    = _drag.canvas.getBoundingClientRect();
+    const canvasX = _drag.curClientX - rect.left;
+    const canvasY = _drag.curClientY - rect.top;
+    const scrollDx = _edgeSpeedX(canvasX, _drag.canvas.width);
+    const scrollDy = _edgeSpeed(canvasY, _drag.canvas.height);
 
-    if (dx !== 0 || dy !== 0) {
-      _drag.sm.scroll(dx, dy);   // скроллит viewport
-      _recalc();                  // пересчитываем цель под курсором
-      _scheduleGhost();           // продолжаем скроллить пока у края
+    if (scrollDx !== 0 || scrollDy !== 0) {
+      _drag.sm.scroll(scrollDx, scrollDy);
+      _recalc();
+      _scheduleGhost();
     }
 
     renderGhost(_drag.dragCtx, _drag.canvas.width, _drag.canvas.height, _drag.sm, _drag);
   });
 }
 
-function _edgeSpeedX(cx, W) {
+function _edgeSpeedX(canvasX, canvasW) {
   const left = ROOM_COL_W;
-  if (cx < left + EDGE_PX)  return -MAX_SPEED * (1 - Math.max(0, cx - left) / EDGE_PX);
-  if (cx > W - EDGE_PX)     return  MAX_SPEED * (1 - (W - cx) / EDGE_PX);
+  if (canvasX < left + EDGE_PX)  return -MAX_SPEED * (1 - Math.max(0, canvasX - left) / EDGE_PX);
+  if (canvasX > canvasW - EDGE_PX) return  MAX_SPEED * (1 - (canvasW - canvasX) / EDGE_PX);
   return 0;
 }
 
-function _edgeSpeed(pos, size) {
-  if (pos < EDGE_PX)          return -MAX_SPEED * (1 - pos / EDGE_PX);
-  if (pos > size - EDGE_PX)   return  MAX_SPEED * (1 - (size - pos) / EDGE_PX);
+function _edgeSpeed(canvasY, canvasH) {
+  if (canvasY < EDGE_PX)           return -MAX_SPEED * (1 - canvasY / EDGE_PX);
+  if (canvasY > canvasH - EDGE_PX) return  MAX_SPEED * (1 - (canvasH - canvasY) / EDGE_PX);
   return 0;
 }
 
@@ -164,4 +205,11 @@ function _hasOverlap(roomId, start, end, excludeId) {
   return store.getEventsForRoom(roomId).some(
     ev => ev.id !== excludeId && ev.start <= end && ev.end >= start,
   );
+}
+
+function _snapBack(drag) {
+  drag.dragCtx.clearRect(0, 0, drag.canvas.width, drag.canvas.height);
+  const draggedRoomId = store.getRooms()[drag.targetRoomIdx]?.id ?? drag.ev.roomId;
+  startMove(drag.ev, drag.targetStart, drag.targetEnd, draggedRoomId);
+  drag.scheduleRender();
 }

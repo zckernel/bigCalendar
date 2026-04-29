@@ -9,14 +9,14 @@ export function hitTestEvent(canvasX, canvasY, sm, store) {
   if (roomIdx < 0 || roomIdx >= rooms.length) return null;
   const dayIdx = sm.firstColIndex + Math.floor((canvasX - ROOM_COL_W + sm.colOffset) / CELL_W);
   if (dayIdx < 0 || dayIdx >= sm.windowDays.length) return null;
-  const clickedDay = sm.windowDays[dayIdx].getTime();
+  const clickedDayMs = sm.windowDays[dayIdx].getTime();
   const events = store.getEventsForRoom(rooms[roomIdx].id);
-  return events.find(ev => ev.start.getTime() <= clickedDay && clickedDay <= ev.end.getTime()) || null;
+  return events.find(ev => ev.start.getTime() <= clickedDayMs && clickedDayMs <= ev.end.getTime()) || null;
 }
 
-export function render(ctx, W, H, sm, store, dragState = null) {
+export function render(ctx, W, H, sm, store, dragState = null, getInterp = null) {
   ctx.clearRect(0, 0, W, H);
-  _drawGrid(ctx, W, H, sm, store, dragState);
+  _drawGrid(ctx, W, H, sm, store, dragState, getInterp);
   _drawRoomNames(ctx, H, sm, store);
   _drawHeader(ctx, W, sm);
   _drawCorner(ctx);
@@ -28,87 +28,122 @@ export function renderGhost(dragCtx, W, H, sm, dragState) {
 
   const { targetRoomIdx, targetStart, targetEnd, hasOverlap } = dragState;
   const rowScreenIdx = targetRoomIdx - sm.firstRowIndex;
-  const y = HEADER_H + rowScreenIdx * CELL_H - sm.rowOffset;
-  if (y + CELL_H < HEADER_H || y > H) return;
+  const rowTop = HEADER_H + rowScreenIdx * CELL_H - sm.rowOffset;
+  if (rowTop + CELL_H < HEADER_H || rowTop > H) return;
 
-  const si = Math.round((targetStart.getTime() - sm.windowStart.getTime()) / MS);
-  const ei = Math.round((targetEnd.getTime()   - sm.windowStart.getTime()) / MS);
-  const x0 = ROOM_COL_W + (si - sm.firstColIndex) * CELL_W - sm.colOffset;
-  const x1 = ROOM_COL_W + (ei - sm.firstColIndex + 1) * CELL_W - sm.colOffset;
-  const cx0 = Math.max(x0, ROOM_COL_W);
-  const cx1 = Math.min(x1, W);
-  if (cx1 <= cx0) return;
+  const startColIdx = Math.round((targetStart.getTime() - sm.windowStart.getTime()) / MS);
+  const endColIdx   = Math.round((targetEnd.getTime()   - sm.windowStart.getTime()) / MS);
+  const eventLeft   = ROOM_COL_W + (startColIdx - sm.firstColIndex) * CELL_W - sm.colOffset;
+  const eventRight  = ROOM_COL_W + (endColIdx - sm.firstColIndex + 1) * CELL_W - sm.colOffset;
+  const clippedLeft  = Math.max(eventLeft, ROOM_COL_W);
+  const clippedRight = Math.min(eventRight, W);
+  if (clippedRight <= clippedLeft) return;
 
-  const evY = y + EVENT_PAD;
-  const evH = CELL_H - EVENT_PAD * 2;
+  const eventTop    = rowTop + EVENT_PAD;
+  const eventHeight = CELL_H - EVENT_PAD * 2;
 
   dragCtx.fillStyle = hasOverlap ? 'rgba(200,0,0,0.45)' : 'rgba(80,80,80,0.35)';
-  dragCtx.fillRect(cx0, evY, cx1 - cx0, evH);
+  dragCtx.fillRect(clippedLeft, eventTop, clippedRight - clippedLeft, eventHeight);
   dragCtx.strokeStyle = hasOverlap ? '#c00' : '#555';
   dragCtx.lineWidth = 2;
-  dragCtx.strokeRect(cx0, evY, cx1 - cx0, evH);
+  dragCtx.strokeRect(clippedLeft, eventTop, clippedRight - clippedLeft, eventHeight);
 }
 
-function _drawGrid(ctx, W, H, sm, store, dragState) {
+function _drawGrid(ctx, W, H, sm, store, dragState, getInterp) {
   const rooms = store.getRooms();
-  const vRows = sm.visibleRows();
-  const vCols = sm.visibleCols();
+  const visibleRowCount = sm.visibleRows();
+  const visibleColCount = sm.visibleCols();
   const dragId = dragState?.ev?.id ?? null;
+  const overlays = [];
 
   ctx.strokeStyle = '#ddd';
 
-  for (let ri = 0; ri < vRows; ri++) {
+  for (let ri = 0; ri < visibleRowCount; ri++) {
     const roomIdx = sm.firstRowIndex + ri;
     if (roomIdx >= rooms.length) continue;
-    const y = HEADER_H + ri * CELL_H - sm.rowOffset;
+    const rowTop = HEADER_H + ri * CELL_H - sm.rowOffset;
 
     ctx.fillStyle = (roomIdx % 2 === 0) ? '#ffffff' : '#f8f8f8';
-    ctx.fillRect(ROOM_COL_W, y, W - ROOM_COL_W, CELL_H);
+    ctx.fillRect(ROOM_COL_W, rowTop, W - ROOM_COL_W, CELL_H);
 
-    _drawEvents(ctx, W, sm, store.getEventsForRoom(rooms[roomIdx].id), y, dragId);
+    _drawEvents(ctx, W, sm, store.getEventsForRoom(rooms[roomIdx].id), rowTop, dragId, getInterp, rooms, overlays);
 
-    for (let ci = 0; ci < vCols; ci++) {
-      ctx.strokeRect(ROOM_COL_W + ci * CELL_W - sm.colOffset, y, CELL_W, CELL_H);
+    for (let ci = 0; ci < visibleColCount; ci++) {
+      ctx.strokeRect(ROOM_COL_W + ci * CELL_W - sm.colOffset, rowTop, CELL_W, CELL_H);
     }
+  }
+
+  for (const overlay of overlays) {
+    _paintEvent(ctx, overlay.ev, overlay.clippedLeft, overlay.clippedRight, overlay.eventLeft, overlay.eventTop, overlay.eventHeight);
   }
 }
 
-function _drawEvents(ctx, W, sm, events, rowY, dragId) {
+function _drawEvents(ctx, W, sm, events, rowTop, dragId, getInterp, rooms, overlays) {
   if (!events.length) return;
-  const evY = rowY + EVENT_PAD;
-  const evH = CELL_H - EVENT_PAD * 2;
+  const eventHeight = CELL_H - EVENT_PAD * 2;
 
   for (const ev of events) {
-    const si = Math.round((ev.start - sm.windowStart) / MS);
-    const ei = Math.round((ev.end   - sm.windowStart) / MS);
+    let startColIdx, endColIdx, eventTop;
+    let movingAcrossRows = false;
+    const interp = getInterp ? getInterp(ev.id) : null;
+    if (interp) {
+      startColIdx = (interp.start.getTime() - sm.windowStart.getTime()) / MS;
+      endColIdx   = (interp.end.getTime()   - sm.windowStart.getTime()) / MS;
+      if (rooms && interp.fromRoomId !== interp.toRoomId) {
+        const fromRoomIdx = rooms.findIndex(r => r.id === interp.fromRoomId);
+        if (fromRoomIdx >= 0) {
+          const fromRowScreenIdx = fromRoomIdx - sm.firstRowIndex;
+          const fromRowTop       = HEADER_H + fromRowScreenIdx * CELL_H - sm.rowOffset;
+          eventTop = fromRowTop + (rowTop - fromRowTop) * interp.t + EVENT_PAD;
+          movingAcrossRows = true;
+        } else {
+          eventTop = rowTop + EVENT_PAD;
+        }
+      } else {
+        eventTop = rowTop + EVENT_PAD;
+      }
+    } else {
+      startColIdx = Math.round((ev.start.getTime() - sm.windowStart.getTime()) / MS);
+      endColIdx   = Math.round((ev.end.getTime()   - sm.windowStart.getTime()) / MS);
+      eventTop = rowTop + EVENT_PAD;
+    }
 
-    const x0 = ROOM_COL_W + (si - sm.firstColIndex) * CELL_W - sm.colOffset;
-    const x1 = ROOM_COL_W + (ei - sm.firstColIndex + 1) * CELL_W - sm.colOffset;
+    const eventLeft  = ROOM_COL_W + (startColIdx - sm.firstColIndex) * CELL_W - sm.colOffset;
+    const eventRight = ROOM_COL_W + (endColIdx - sm.firstColIndex + 1) * CELL_W - sm.colOffset;
 
-    const cx0 = Math.max(x0, ROOM_COL_W);
-    const cx1 = Math.min(x1, W);
-    if (cx1 <= cx0) continue;
+    const clippedLeft  = Math.max(eventLeft, ROOM_COL_W);
+    const clippedRight = Math.min(eventRight, W);
+    if (clippedRight <= clippedLeft) continue;
 
     if (ev.id === dragId) {
-      _drawHatching(ctx, cx0, evY, cx1 - cx0, evH);
+      _drawHatching(ctx, clippedLeft, eventTop, clippedRight - clippedLeft, eventHeight);
       continue;
     }
 
-    ctx.fillStyle = EVENT_COLORS[ev.type] || '#aaa';
-    ctx.fillRect(cx0, evY, cx1 - cx0, evH);
-
-    const labelX = Math.max(x0 + 3, ROOM_COL_W + 3);
-    if (cx1 - labelX > 28) {
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(cx0, evY, cx1 - cx0, evH);
-      ctx.clip();
-      ctx.fillStyle = 'rgba(255,255,255,0.85)';
-      ctx.font = 'bold 9px monospace';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(ev.type, labelX, evY + evH / 2);
-      ctx.restore();
+    if (movingAcrossRows && overlays) {
+      overlays.push({ ev, clippedLeft, clippedRight, eventLeft, eventTop, eventHeight });
+      continue;
     }
+
+    _paintEvent(ctx, ev, clippedLeft, clippedRight, eventLeft, eventTop, eventHeight);
+  }
+}
+
+function _paintEvent(ctx, ev, clippedLeft, clippedRight, eventLeft, eventTop, eventHeight) {
+  ctx.fillStyle = EVENT_COLORS[ev.type] || '#aaa';
+  ctx.fillRect(clippedLeft, eventTop, clippedRight - clippedLeft, eventHeight);
+
+  const labelX = Math.max(eventLeft + 3, ROOM_COL_W + 3);
+  if (clippedRight - labelX > 28) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(clippedLeft, eventTop, clippedRight - clippedLeft, eventHeight);
+    ctx.clip();
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.font = 'bold 9px monospace';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(ev.type, labelX, eventTop + eventHeight / 2);
+    ctx.restore();
   }
 }
 
@@ -133,47 +168,47 @@ function _drawHatching(ctx, x, y, w, h) {
 
 function _drawRoomNames(ctx, H, sm, store) {
   const rooms = store.getRooms();
-  const vRows = sm.visibleRows();
+  const visibleRowCount = sm.visibleRows();
 
-  for (let ri = 0; ri < vRows; ri++) {
+  for (let ri = 0; ri < visibleRowCount; ri++) {
     const roomIdx = sm.firstRowIndex + ri;
     if (roomIdx >= rooms.length) continue;
-    const y = HEADER_H + ri * CELL_H - sm.rowOffset;
+    const rowTop = HEADER_H + ri * CELL_H - sm.rowOffset;
 
     ctx.fillStyle = (roomIdx % 2 === 0) ? '#e8eaf6' : '#ede7f6';
-    ctx.fillRect(0, y, ROOM_COL_W, CELL_H);
+    ctx.fillRect(0, rowTop, ROOM_COL_W, CELL_H);
     ctx.strokeStyle = '#bbb';
-    ctx.strokeRect(0, y, ROOM_COL_W, CELL_H);
+    ctx.strokeRect(0, rowTop, ROOM_COL_W, CELL_H);
 
     ctx.fillStyle = '#222';
     ctx.font = 'bold 11px monospace';
     ctx.textBaseline = 'middle';
-    ctx.fillText(rooms[roomIdx].name, 6, y + CELL_H / 2);
+    ctx.fillText(rooms[roomIdx].name, 6, rowTop + CELL_H / 2);
   }
 }
 
 function _drawHeader(ctx, W, sm) {
-  const vCols = sm.visibleCols();
+  const visibleColCount = sm.visibleCols();
 
   ctx.font = '11px monospace';
   ctx.textBaseline = 'middle';
 
-  for (let ci = 0; ci < vCols; ci++) {
+  for (let ci = 0; ci < visibleColCount; ci++) {
     const dayIdx = sm.firstColIndex + ci;
     if (dayIdx < 0 || dayIdx >= sm.windowDays.length) continue;
     const day = sm.windowDays[dayIdx];
-    const x = ROOM_COL_W + ci * CELL_W - sm.colOffset;
+    const colLeft  = ROOM_COL_W + ci * CELL_W - sm.colOffset;
     const isWeekend = day.getDay() === 0 || day.getDay() === 6;
 
     ctx.fillStyle = isWeekend ? '#ffcdd2' : '#c5cae9';
-    ctx.fillRect(x, 0, CELL_W, HEADER_H);
+    ctx.fillRect(colLeft, 0, CELL_W, HEADER_H);
     ctx.strokeStyle = '#9fa8da';
-    ctx.strokeRect(x, 0, CELL_W, HEADER_H);
+    ctx.strokeRect(colLeft, 0, CELL_W, HEADER_H);
 
     const mm = String(day.getMonth() + 1).padStart(2, '0');
     const dd = String(day.getDate()).padStart(2, '0');
     ctx.fillStyle = '#1a237e';
-    ctx.fillText(`${DAYS_OF_WEEK[day.getDay()]} ${mm}/${dd}`, x + 4, HEADER_H / 2);
+    ctx.fillText(`${DAYS_OF_WEEK[day.getDay()]} ${mm}/${dd}`, colLeft + 4, HEADER_H / 2);
   }
 }
 
