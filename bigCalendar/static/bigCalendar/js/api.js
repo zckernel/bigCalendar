@@ -16,7 +16,7 @@ export async function fetchEvents(start, end) {
 export async function moveEvent(id, roomId, start, end) {
   const res = await fetch(`${BASE}/api/events/${id}/`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'X-Api-Key': window.API_KEY },
     body: JSON.stringify({ room_id: roomId, event_start: start, event_end: end }),
   });
   if (!res.ok) throw new Error('move failed');
@@ -27,7 +27,7 @@ export async function moveEvent(id, roomId, start, end) {
 export async function updateEvent(id, eventType) {
   const res = await fetch(`${BASE}/api/events/${id}/`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'X-Api-Key': window.API_KEY },
     body: JSON.stringify({ event_type: eventType }),
   });
   if (!res.ok) throw new Error('update failed');

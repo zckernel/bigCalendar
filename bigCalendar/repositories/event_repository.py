@@ -1,4 +1,15 @@
+from django.db import transaction
 from bigCalendar.models import Event
+
+
+def _event_to_dict(event):
+    return {
+        'id': event.id,
+        'room_id': event.room_id,
+        'event_type': event.event_type,
+        'event_start': event.event_start,
+        'event_end': event.event_end,
+    }
 
 
 def get_by_date_range(date_start, date_end):
@@ -18,12 +29,13 @@ def get_updated_since(since_dt):
 
 
 def update_type(event_id, event_type):
-    updated = Event.objects.filter(pk=event_id).update(event_type=event_type)
-    if not updated:
-        return None
-    return Event.objects.filter(pk=event_id).values(
-        'id', 'room_id', 'event_type', 'event_start', 'event_end'
-    ).first()
+    with transaction.atomic():
+        event = Event.objects.select_for_update().filter(pk=event_id).first()
+        if event is None:
+            return None
+        event.event_type = event_type
+        event.save(update_fields=['event_type', 'updated_at'])
+        return _event_to_dict(event)
 
 
 def check_overlap(room_id, start, end, exclude_id):
@@ -35,11 +47,12 @@ def check_overlap(room_id, start, end, exclude_id):
 
 
 def update_position(event_id, room_id, start, end):
-    updated = Event.objects.filter(pk=event_id).update(
-        room_id=room_id, event_start=start, event_end=end,
-    )
-    if not updated:
-        return None
-    return Event.objects.filter(pk=event_id).values(
-        'id', 'room_id', 'event_type', 'event_start', 'event_end'
-    ).first()
+    with transaction.atomic():
+        event = Event.objects.select_for_update().filter(pk=event_id).first()
+        if event is None:
+            return None
+        event.room_id = room_id
+        event.event_start = start
+        event.event_end = end
+        event.save(update_fields=['room_id', 'event_start', 'event_end', 'updated_at'])
+        return _event_to_dict(event)

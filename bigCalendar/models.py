@@ -7,19 +7,18 @@ class Room(models.Model):
     class Meta:
         db_table = 'calendar_room'
 
+    def __str__(self):
+        return self.name
+
 
 class Event(models.Model):
-    TYPE_EMPTY = 'empty'
-    TYPE_BOOKED = 'booked'
-    TYPE_MAINTENANCE = 'maintenance'
-    EVENT_TYPES = [
-        (TYPE_EMPTY, 'Empty'),
-        (TYPE_BOOKED, 'Booked'),
-        (TYPE_MAINTENANCE, 'Maintenance'),
-    ]
+    class EventType(models.TextChoices):
+        EMPTY = 'empty', 'Empty'
+        BOOKED = 'booked', 'Booked'
+        MAINTENANCE = 'maintenance', 'Maintenance'
 
     room = models.ForeignKey(Room, on_delete=models.CASCADE, related_name='events')
-    event_type = models.CharField(max_length=16, choices=EVENT_TYPES)
+    event_type = models.CharField(max_length=16, choices=EventType.choices)
     event_start = models.DateField()
     event_end = models.DateField()
     updated_at = models.DateTimeField(auto_now=True)
@@ -30,3 +29,6 @@ class Event(models.Model):
             models.Index(fields=['room', 'event_start', 'event_end']),
             models.Index(fields=['updated_at']),
         ]
+
+    def __str__(self):
+        return f"{self.event_type} | room {self.room_id} | {self.event_start}–{self.event_end}"

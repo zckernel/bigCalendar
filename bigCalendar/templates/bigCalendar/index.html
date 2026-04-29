@@ -88,7 +88,7 @@
   }
 }
 </script>
-<script>window.REALTIME_TRANSPORT = '{{ realtime_transport }}';</script>
+<script>window.REALTIME_TRANSPORT = '{{ realtime_transport }}'; window.API_KEY = '{{ api_key }}';</script>
 <script type="module" src="{% static 'bigCalendar/js/main.js' %}?v={{ js_version }}"></script>
 </body>
 </html>

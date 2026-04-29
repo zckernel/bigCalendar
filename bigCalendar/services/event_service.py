@@ -1,4 +1,5 @@
 from datetime import date, datetime, timezone
+from bigCalendar.models import Event
 from bigCalendar.repositories import event_repository
 
 
@@ -7,7 +8,7 @@ def get_events_for_range(start: date, end: date):
     return [_serialize(r) for r in rows]
 
 
-VALID_TYPES = {'empty', 'booked', 'maintenance'}
+VALID_TYPES = set(Event.EventType.values)
 
 
 def update_event_type(event_id: int, event_type: str):

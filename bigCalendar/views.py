@@ -1,6 +1,7 @@
 import asyncio
 import json
 from datetime import date, datetime, timezone
+from functools import wraps
 from django.conf import settings
 from django.http import JsonResponse, StreamingHttpResponse
 from django.shortcuts import render
@@ -10,10 +11,20 @@ from asgiref.sync import sync_to_async
 from bigCalendar.services import room_service, event_service
 
 
+def _require_api_key(view_func):
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        if request.headers.get('X-Api-Key') != settings.API_KEY:
+            return JsonResponse({'error': 'forbidden'}, status=403)
+        return view_func(request, *args, **kwargs)
+    return wrapper
+
+
 def index(request):
     return render(request, 'bigCalendar/index.html', {
         'realtime_transport': settings.REALTIME_TRANSPORT,
         'js_version': settings.JS_VERSION,
+        'api_key': settings.API_KEY,
     })
 
 
@@ -22,16 +33,19 @@ async def api_stream(request):
 
     async def stream():
         last_check = datetime.now(timezone.utc)
-        while True:
-            await asyncio.sleep(2)
-            now = datetime.now(timezone.utc)
-            events = await get_updated(last_check)
-            last_check = now
-            if events:
-                data = json.dumps({'type': 'events_changed', 'events': events})
-                yield f'data: {data}\n\n'
-            else:
-                yield ': heartbeat\n\n'
+        try:
+            while True:
+                await asyncio.sleep(2)
+                now = datetime.now(timezone.utc)
+                events = await get_updated(last_check)
+                last_check = now
+                if events:
+                    data = json.dumps({'type': 'events_changed', 'events': events})
+                    yield f'data: {data}\n\n'
+                else:
+                    yield ': heartbeat\n\n'
+        except (GeneratorExit, asyncio.CancelledError):
+            return
 
     response = StreamingHttpResponse(stream(), content_type='text/event-stream')
     response['Cache-Control'] = 'no-cache'
@@ -58,6 +72,7 @@ def api_events(request):
 
 
 @csrf_exempt
+@_require_api_key
 def api_event_update(request, event_id):
     if request.method != 'PATCH':
         return JsonResponse({'error': 'method not allowed'}, status=405)

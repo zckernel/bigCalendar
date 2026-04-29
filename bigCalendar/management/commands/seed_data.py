@@ -7,7 +7,7 @@ from bigCalendar.models import Room, Event
 TOTAL_ROOMS = 1000
 ROOM_FRACTION = 0.30
 DATE_RANGE_DAYS = 180
-EVENT_TYPES = [Event.TYPE_EMPTY, Event.TYPE_BOOKED, Event.TYPE_MAINTENANCE]
+EVENT_TYPES = Event.EventType.values
 
 
 class Command(BaseCommand):

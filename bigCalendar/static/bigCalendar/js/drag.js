@@ -73,30 +73,7 @@ export function init(sm, canvas, dragCanvas, scheduleRender, onEventClick) {
       return;
     }
 
-    if (drag.hasOverlap) { _snapBack(drag); return; }
-
-    drag.dragCtx.clearRect(0, 0, drag.canvas.width, drag.canvas.height);
-
-    const rooms      = store.getRooms();
-    const targetRoom = rooms[drag.targetRoomIdx];
-    if (!targetRoom) { drag.scheduleRender(); return; }
-
-    const unchanged =
-      targetRoom.id === drag.ev.roomId &&
-      drag.targetStart.getTime() === drag.ev.start.getTime();
-    if (unchanged) { drag.scheduleRender(); return; }
-
-    try {
-      const updated = await api.moveEvent(
-        drag.ev.id, targetRoom.id,
-        _fmt(drag.targetStart), _fmt(drag.targetEnd),
-      );
-      store.applyUpdates([updated]);
-      cancelMove(drag.ev.id);
-    } catch {
-      // сервер отклонил (гонка overlap) — UI без изменений
-    }
-    drag.scheduleRender();
+    await _commitDrag(drag);
   });
 
   sm.onDragTouchMove = (clientX, clientY) => {
@@ -111,30 +88,33 @@ export function init(sm, canvas, dragCanvas, scheduleRender, onEventClick) {
     if (!_drag) return;
     const drag = _drag;
     _drag = null;
-
-    if (drag.hasOverlap) { _snapBack(drag); return; }
-
-    drag.dragCtx.clearRect(0, 0, drag.canvas.width, drag.canvas.height);
-
-    const rooms      = store.getRooms();
-    const targetRoom = rooms[drag.targetRoomIdx];
-    if (!targetRoom) { drag.scheduleRender(); return; }
-
-    const unchanged =
-      targetRoom.id === drag.ev.roomId &&
-      drag.targetStart.getTime() === drag.ev.start.getTime();
-    if (unchanged) { drag.scheduleRender(); return; }
-
-    try {
-      const updated = await api.moveEvent(
-        drag.ev.id, targetRoom.id,
-        _fmt(drag.targetStart), _fmt(drag.targetEnd),
-      );
-      store.applyUpdates([updated]);
-      cancelMove(drag.ev.id);
-    } catch {}
-    drag.scheduleRender();
+    await _commitDrag(drag);
   };
+}
+
+async function _commitDrag(drag) {
+  if (drag.hasOverlap) { _snapBack(drag); return; }
+
+  drag.dragCtx.clearRect(0, 0, drag.canvas.width, drag.canvas.height);
+
+  const rooms      = store.getRooms();
+  const targetRoom = rooms[drag.targetRoomIdx];
+  if (!targetRoom) { drag.scheduleRender(); return; }
+
+  const unchanged =
+    targetRoom.id === drag.ev.roomId &&
+    drag.targetStart.getTime() === drag.ev.start.getTime();
+  if (unchanged) { drag.scheduleRender(); return; }
+
+  try {
+    const updated = await api.moveEvent(
+      drag.ev.id, targetRoom.id,
+      _fmt(drag.targetStart), _fmt(drag.targetEnd),
+    );
+    store.applyUpdates([updated]);
+    cancelMove(drag.ev.id);
+  } catch {}
+  drag.scheduleRender();
 }
 
 // пересчёт целевой позиции относительно текущего viewport
