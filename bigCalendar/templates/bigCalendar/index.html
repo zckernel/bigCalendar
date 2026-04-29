@@ -73,7 +73,22 @@
   <button class="btn-maintenance">Maintenance</button>
   <button class="btn-empty">Empty</button>
 </div>
+<script type="importmap">
+{
+  "imports": {
+    "{% static 'bigCalendar/js/animations.js' %}": "{% static 'bigCalendar/js/animations.js' %}?v={{ js_version }}",
+    "{% static 'bigCalendar/js/api.js' %}":        "{% static 'bigCalendar/js/api.js' %}?v={{ js_version }}",
+    "{% static 'bigCalendar/js/config.js' %}":     "{% static 'bigCalendar/js/config.js' %}?v={{ js_version }}",
+    "{% static 'bigCalendar/js/drag.js' %}":       "{% static 'bigCalendar/js/drag.js' %}?v={{ js_version }}",
+    "{% static 'bigCalendar/js/renderer.js' %}":   "{% static 'bigCalendar/js/renderer.js' %}?v={{ js_version }}",
+    "{% static 'bigCalendar/js/scroll.js' %}":     "{% static 'bigCalendar/js/scroll.js' %}?v={{ js_version }}",
+    "{% static 'bigCalendar/js/sse.js' %}":        "{% static 'bigCalendar/js/sse.js' %}?v={{ js_version }}",
+    "{% static 'bigCalendar/js/store.js' %}":      "{% static 'bigCalendar/js/store.js' %}?v={{ js_version }}",
+    "{% static 'bigCalendar/js/websocket.js' %}":  "{% static 'bigCalendar/js/websocket.js' %}?v={{ js_version }}"
+  }
+}
+</script>
 <script>window.REALTIME_TRANSPORT = '{{ realtime_transport }}';</script>
-<script type="module" src="{% static 'bigCalendar/js/main.js' %}?v=1.0.8"></script>
+<script type="module" src="{% static 'bigCalendar/js/main.js' %}?v={{ js_version }}"></script>
 </body>
 </html>

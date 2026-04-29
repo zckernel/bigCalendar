@@ -13,6 +13,7 @@ from bigCalendar.services import room_service, event_service
 def index(request):
     return render(request, 'bigCalendar/index.html', {
         'realtime_transport': settings.REALTIME_TRANSPORT,
+        'js_version': settings.JS_VERSION,
     })
 
 

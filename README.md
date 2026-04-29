@@ -1,16 +1,31 @@
 # bigCalendar
 
-A real-time room booking calendar built with Django Channels, WebSockets, and a Canvas-based frontend.
+A high-performance, real-time room booking calendar built with Django Channels and a Canvas-based frontend. Designed to handle thousands of rooms and events smoothly — on both desktop and mobile.
 
 **Demo:** https://zckernel.com/bigcalendar/
 
 ## Features
 
-- Canvas-rendered calendar for 1000 rooms across a 360-day range (±180 days from today)
-- Real-time updates via WebSocket — event changes propagate to all clients within ~2 seconds
-- Three event types: **Booked** (blue), **Maintenance** (red), **Empty** (yellow)
-- Vertical scroll (rooms) and horizontal scroll (dates)
-- REST API for rooms and events
+### Performance
+- **Canvas rendering** — the entire grid is drawn via the Canvas 2D API. No DOM nodes per event, no layout thrashing. Renders 1000 rooms × 360 days instantly.
+- **Virtual viewport** — only the visible rows and columns are drawn on each frame. Scrolling through thousands of rooms stays smooth regardless of dataset size.
+- **Infinite scroll window** — the date axis is a sliding window that extends automatically as the user scrolls, with no hard boundaries.
+
+### Smooth UX
+- **Animated drag & drop** — events interpolate smoothly to their new position after being dropped. If the server rejects a move (overlap conflict), the event snaps back with animation.
+- **Real-time sync** — changes made by any client appear on all other connected clients within ~2 seconds, with smooth move animation applied automatically.
+- **Edge auto-scroll** — dragging an event near the viewport edge scrolls the calendar horizontally or vertically at a speed proportional to proximity.
+
+### Mobile
+- **Touch scrolling** — swipe gestures pan the calendar in both axes.
+- **Long-press to drag** — hold an event for 350 ms to start dragging it; the device vibrates briefly to confirm. Tap to change the event type.
+- **Full touch event pipeline** — touch move, end, and cancel are all handled; scroll and drag modes are cleanly separated with no gesture conflicts.
+
+### Other
+- Three event types: **Booked** (blue), **Maintenance** (red), **Empty** (yellow) — switchable via tap/click popup.
+- Overlap detection on both client (prevents the drop) and server (race-condition guard).
+- Dual real-time transport: **WebSocket + Redis** (multi-process) or **SSE** (zero-dependency single-process).
+- REST API for rooms and events.
 
 ## Stack
 

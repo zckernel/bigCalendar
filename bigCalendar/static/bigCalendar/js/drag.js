@@ -1,8 +1,8 @@
-import { CELL_W, CELL_H, HEADER_H, ROOM_COL_W } from './config.js?v=1.0.8';
-import { hitTestEvent, renderGhost } from './renderer.js?v=1.0.8';
-import * as store from './store.js?v=1.0.8';
-import * as api from './api.js?v=1.0.8';
-import { startMove, cancelMove } from './animations.js?v=1.0.8';
+import { CELL_W, CELL_H, HEADER_H, ROOM_COL_W } from './config.js';
+import { hitTestEvent, renderGhost } from './renderer.js';
+import * as store from './store.js';
+import * as api from './api.js';
+import { startMove, cancelMove } from './animations.js';
 
 const MS = 86400000;
 const EDGE_PX   = 60;  // px от края — начало авто-скролла

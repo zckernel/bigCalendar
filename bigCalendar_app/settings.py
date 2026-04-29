@@ -11,7 +11,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
-from bigCalendar_app.config import REALTIME_TRANSPORT
+from bigCalendar_app.config import REALTIME_TRANSPORT, JS_VERSION
 import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
