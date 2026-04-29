@@ -1,41 +1,50 @@
 # bigCalendar
 
-A high-performance, real-time room booking calendar built with Django Channels and a Canvas-based frontend. Designed to handle thousands of rooms and events smoothly — on both desktop and mobile.
+A high-performance grid calendar built for scale. The entire grid renders on a Canvas 2D surface — no DOM nodes per event, no layout thrashing. Only visible cells are painted each frame (virtual viewport), and the date axis extends dynamically as you scroll with no hard limits. Drop in a million rows, scroll through years of history, drag events across the grid — it stays smooth.
+
+Works across all modern desktop browsers and mobile devices.
 
 **Demo:** https://zckernel.com/bigcalendar/
 
 ## Features
 
 ### Performance
-- **Canvas rendering** — the entire grid is drawn via the Canvas 2D API. No DOM nodes per event, no layout thrashing. Renders 1000 rooms × 360 days instantly.
-- **Virtual viewport** — only the visible rows and columns are drawn on each frame. Scrolling through thousands of rooms stays smooth regardless of dataset size.
-- **Infinite scroll window** — the date axis is a sliding window that extends automatically as the user scrolls, with no hard boundaries.
+- **Canvas rendering** — the entire grid is drawn via the Canvas 2D API. No DOM nodes per event, no layout thrashing.
+- **Virtual viewport** — only the visible rows and columns are drawn on each frame. Scrolling through thousands of rows stays smooth regardless of dataset size.
+- **Infinite date axis** — the column window extends automatically as the user scrolls left or right, with no hard boundaries and no pagination.
+- **requestAnimationFrame batching** — ghost rendering and scroll updates are coalesced into single rAF callbacks.
 
-### Smooth UX
-- **Animated drag & drop** — events interpolate smoothly to their new position after being dropped. If the server rejects a move (overlap conflict), the event snaps back with animation.
-- **Real-time sync** — changes made by any client appear on all other connected clients within ~2 seconds, with smooth move animation applied automatically.
-- **Edge auto-scroll** — dragging an event near the viewport edge scrolls the calendar horizontally or vertically at a speed proportional to proximity.
+### Drag & Drop
+- **Smooth animated moves** — events interpolate to their new position after being dropped.
+- **Snap-back on conflict** — if the server rejects a move (overlap race condition), the event animates back to its original position.
+- **Client-side overlap guard** — overlap is checked locally before the drop is submitted, giving instant feedback without a round-trip.
+- **Edge auto-scroll** — dragging near the viewport edge scrolls the calendar in both axes at a speed proportional to proximity.
 
-### Mobile
-- **Touch scrolling** — swipe gestures pan the calendar in both axes.
-- **Long-press to drag** — hold an event for 350 ms to start dragging it; the device vibrates briefly to confirm. Tap to change the event type.
-- **Full touch event pipeline** — touch move, end, and cancel are all handled; scroll and drag modes are cleanly separated with no gesture conflicts.
+### Real-time sync
+- Changes made by any client appear on all connected clients within ~2 seconds, with smooth move animation applied automatically.
+- Dual transport: **WebSocket + Redis** (multi-process) or **SSE** (zero-dependency single-process).
+
+### Mobile & Browser
+- Adapted for all modern browsers (Chrome, Firefox, Safari, Edge) and mobile devices (iOS, Android).
+- **Touch scrolling** — swipe gestures pan the grid in both axes.
+- **Long-press to drag** — hold an event for 350 ms to start dragging; the device vibrates briefly to confirm.
+- **Tap to edit** — tap an event to switch its type via popup.
+- Full touch pipeline: move, end, and cancel are handled; scroll and drag modes are cleanly separated with no gesture conflicts.
 
 ### Other
-- Three event types: **Booked** (blue), **Maintenance** (red), **Empty** (yellow) — switchable via tap/click popup.
-- Overlap detection on both client (prevents the drop) and server (race-condition guard).
-- Dual real-time transport: **WebSocket + Redis** (multi-process) or **SSE** (zero-dependency single-process).
+- Three event states: **Booked** (blue), **Maintenance** (red), **Empty** (yellow).
 - REST API for rooms and events.
+- Seed command to generate 1 000 rows with realistic data.
 
 ## Stack
 
 | Layer | Technology |
 |---|---|
-| Backend | Django 6, Django Channels, Daphne |
-| Database | MySQL |
-| Cache / WS broker | Redis |
-| Frontend | Vanilla JS (ES modules), Canvas API |
-| Container | Docker / docker-compose |
+| Backend | Python 3.12, Django 6, Django Channels 4, Daphne 4 |
+| Database | MySQL 8 |
+| Cache / WS broker | Redis 7 |
+| Frontend | Vanilla JS (ES modules), Canvas 2D API |
+| Container | Docker, docker-compose |
 
 ## Architecture
 
@@ -45,11 +54,12 @@ bigCalendar/
   repositories/          # DB queries
   services/              # Business logic + polling (every 2s)
   consumers.py           # WebSocket consumer
-  views.py               # REST API + index
-  static/bigCalendar/js/ # config, api, store, websocket, scroll, renderer, main
+  views.py               # REST API + SSE + index
+  static/bigCalendar/js/ # config, api, store, websocket, scroll, renderer, drag, main
   templates/             # index.html
 bigCalendar_app/
-  settings.py            # CHANNEL_LAYERS → redis:6379
+  settings.py            # reads env vars; CHANNEL_LAYERS → redis:6379 or in-memory
+  config.py              # REALTIME_TRANSPORT, JS_VERSION
   asgi.py                # ProtocolTypeRouter
 ```
 
@@ -57,38 +67,61 @@ bigCalendar_app/
 
 ### Prerequisites
 
-- Docker + docker-compose
-- A running `shared-dev-net` Docker network
-- MySQL container reachable as `mysql` (db: `app`, user: `app`, pass: `secret`)
-- Redis container reachable as `redis` on port `6379`
+- Docker ≥ 24 and docker-compose v2
+- Python 3.12 (only needed for local development outside Docker)
+
+### Environment variables
+
+Copy and fill in `.env` before starting the stack:
+
+```env
+# Required
+SECRET_KEY=replace-with-a-long-random-string
+API_KEY=replace-with-a-long-random-string
+
+# Database (must match docker-compose.prod.yml MySQL config)
+DB_NAME=bigcalendar
+DB_USER=bigcalendar
+DB_PASSWORD=change_me
+DB_HOST=mysql
+DB_PORT=3306
+
+# Optional
+DEBUG=False
+```
 
 ### Run
 
 ```bash
-docker-compose up --build
-```
-
-The app is available at `http://localhost:8000`.
-
-### Seed data
-
-```bash
-python manage.py seed_data          # seed 1000 rooms + events
-python manage.py seed_data --clear  # drop and re-seed
+docker-compose -f docker-compose.prod.yml up --build -d
 ```
 
 ### Migrations
 
+Run once after the first start (and after each schema change):
+
 ```bash
-python manage.py migrate
+docker-compose -f docker-compose.prod.yml exec bigcalendar python manage.py migrate
 ```
+
+### Seed data
+
+```bash
+docker-compose -f docker-compose.prod.yml exec bigcalendar python manage.py seed_data          # seed 1000 rows + events
+docker-compose -f docker-compose.prod.yml exec bigcalendar python manage.py seed_data --clear  # drop and re-seed
+```
+
+The app is available at `http://localhost:8000`.
 
 ## API
 
+All write endpoints require the `X-API-Key` header matching the `API_KEY` env var.
+
 | Method | Endpoint | Description |
 |---|---|---|
-| GET | `/api/rooms/` | List all rooms |
+| GET | `/api/rooms/` | List all rows |
 | GET | `/api/events/?start=YYYY-MM-DD&end=YYYY-MM-DD` | Events for date range |
+| PATCH | `/api/events/<id>/` | Update event type or position |
 
 ## WebSocket
 
@@ -101,48 +134,36 @@ Payload on change:
 
 ## Realtime Transport
 
-The update delivery mechanism is controlled by the `REALTIME_TRANSPORT` environment variable.
+Controlled by `REALTIME_TRANSPORT` in `bigCalendar_app/config.py`:
 
 | Value | Default | Requires |
 |---|---|---|
 | `redis` | yes | Redis container, Django Channels |
 | `sse` | no | Nothing extra |
 
-Edit `bigCalendar_app/config.py`:
-
-```python
-REALTIME_TRANSPORT = 'redis'  # or 'sse'
-```
-
 ### When to use `redis`
-
-- You run multiple server processes / workers
-- You need true bidirectional communication in the future
+- Multiple server processes / workers
 - You already have Redis in your infrastructure
 
 ### When to use `sse`
-
 - Single-process deployment (one Daphne instance)
 - You want to eliminate the Redis dependency
-- Simpler infrastructure: no broker, no Channels layer needed
-- Updates are server → client only (which is all this app does)
 
 Both modes poll the database every 2 seconds and push changes to all connected clients. The user experience is identical.
-
-## License
-
-This project is licensed under the Business Source License 1.1 (BSL).
-
-- Free for non-commercial use  
-- Commercial use requires a separate license  
-- Contact: zckernel@gmail.com  
-- Converts to MIT on 2036-01-01
 
 ## Database Schema
 
 ```sql
 calendar_room:  id, name
-calendar_event: id, room_id (FK), event_type ENUM(empty,booked,maintenance),
+calendar_event: id, room_id (FK), event_type ENUM(empty, booked, maintenance),
                 event_start DATE, event_end DATE,
                 updated_at DATETIME ON UPDATE CURRENT_TIMESTAMP
 ```
+
+## License
+
+Business Source License 1.1 (BSL)
+
+- Free for non-commercial use
+- Commercial use requires a separate license — contact zckernel@gmail.com
+- Converts to MIT on 2036-01-01
