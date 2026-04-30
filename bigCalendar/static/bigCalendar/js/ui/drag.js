@@ -160,7 +160,23 @@ export function init(sm, canvas, dragCanvas, scheduleRender, onEventClick) {
 async function _commitDrag(drag) {
   if (drag.hasOverlap) { _snapBack(drag); return; }
 
-  drag.dragCtx.clearRect(0, 0, drag.canvas.width, drag.canvas.height);
+  const _dropGhostState = {
+    targetRoomIdx: drag.targetRoomIdx,
+    targetStart:   drag.targetStart,
+    targetEnd:     drag.targetEnd,
+    hasOverlap:    false,
+  };
+  const _dropT0 = performance.now();
+  const _dropToken = ++_snapBackGhostToken;
+  (function _animateDrop() {
+    if (_snapBackGhostToken !== _dropToken) { return; }
+    const raw = Math.min(1, (performance.now() - _dropT0) / ANIM_DURATION);
+    if (raw >= 1) { drag.dragCtx.clearRect(0, 0, drag.canvas.width, drag.canvas.height); return; }
+    drag.dragCtx.globalAlpha = Math.pow(1 - raw, 3);
+    renderGhost(drag.dragCtx, drag.canvas.width, drag.canvas.height, drag.sm, _dropGhostState);
+    drag.dragCtx.globalAlpha = 1;
+    requestAnimationFrame(_animateDrop);
+  }());
 
   const rooms      = store.getRooms();
   const targetRoom = rooms[drag.targetRoomIdx];
