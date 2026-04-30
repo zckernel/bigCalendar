@@ -12,7 +12,11 @@ const _fmt = d =>
   `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 
 let _drag = null;
+let _pendingDrag = null;
+let _dragTimer = null;
 let _rafPending = false;
+
+const DRAG_DELAY_MS = 150;
 
 export function getDragState() { return _drag; }
 
@@ -31,7 +35,7 @@ export function init(sm, canvas, dragCanvas, scheduleRender, onEventClick) {
     const dayUnderCursor  = sm.windowDays[Math.max(0, Math.min(sm.windowDays.length - 1, colIdx))];
     const clickDayOffset  = Math.round((dayUnderCursor.getTime() - ev.start.getTime()) / MS);
 
-    _drag = {
+    _pendingDrag = {
       ev, clickDayOffset, onEventClick,
       startClientX: e.clientX,
       startClientY: e.clientY,
@@ -44,12 +48,30 @@ export function init(sm, canvas, dragCanvas, scheduleRender, onEventClick) {
       sm, canvas, dragCtx, scheduleRender,
     };
 
-    document.body.style.cursor = 'grabbing';
-    scheduleRender();
+    // активируем визуальный drag только после задержки, чтобы простой клик не мигал
+    _dragTimer = setTimeout(() => {
+      if (_pendingDrag) {
+        _drag = _pendingDrag;
+        _pendingDrag = null;
+        document.body.style.cursor = 'grabbing';
+        scheduleRender();
+      }
+    }, DRAG_DELAY_MS);
+
     return true;
   };
 
   window.addEventListener('mousemove', (e) => {
+    if (_pendingDrag) {
+      const dist = Math.hypot(e.clientX - _pendingDrag.startClientX, e.clientY - _pendingDrag.startClientY);
+      if (dist > 5) {
+        clearTimeout(_dragTimer);
+        _dragTimer = null;
+        _drag = _pendingDrag;
+        _pendingDrag = null;
+        document.body.style.cursor = 'grabbing';
+      }
+    }
     if (!_drag) return;
     _drag.curClientX = e.clientX;
     _drag.curClientY = e.clientY;
@@ -58,20 +80,20 @@ export function init(sm, canvas, dragCanvas, scheduleRender, onEventClick) {
   });
 
   window.addEventListener('mouseup', async (e) => {
+    if (_pendingDrag) {
+      // мышь почти не двигалась — это клик, drag ещё не активировался
+      clearTimeout(_dragTimer);
+      _dragTimer = null;
+      const pending = _pendingDrag;
+      _pendingDrag = null;
+      if (pending.onEventClick) pending.onEventClick(pending.ev, e.clientX, e.clientY);
+      return;
+    }
     if (!_drag) return;
     const drag = _drag;
     _drag = null;
 
     document.body.style.cursor = '';
-
-    // клик (мышь почти не двигалась) — показываем попап смены типа
-    const dist = Math.hypot(e.clientX - drag.startClientX, e.clientY - drag.startClientY);
-    if (dist < 5) {
-      drag.dragCtx.clearRect(0, 0, drag.canvas.width, drag.canvas.height);
-      drag.scheduleRender();
-      if (drag.onEventClick) drag.onEventClick(drag.ev, e.clientX, e.clientY);
-      return;
-    }
 
     await _commitDrag(drag);
   });
