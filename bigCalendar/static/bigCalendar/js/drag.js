@@ -1,12 +1,9 @@
-import { CELL_W, CELL_H, HEADER_H, ROOM_COL_W } from './config.js';
+import { CELL_W, CELL_H, HEADER_H, ROOM_COL_W, MS, EDGE_PX, MAX_SPEED, DRAG_DELAY_MS } from './config.js';
 import { hitTestEvent, renderGhost } from './renderer.js';
 import * as store from './store.js';
 import * as api from './api.js';
 import { startMove, cancelMove } from './animations.js';
 
-const MS = 86400000;
-const EDGE_PX   = 60;  // px from edge — auto-scroll threshold
-const MAX_SPEED = 15;  // px/frame
 
 const _fmt = d =>
   `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -16,7 +13,6 @@ let _pendingDrag = null;
 let _dragTimer = null;
 let _rafPending = false;
 
-const DRAG_DELAY_MS = 150;
 
 export function getDragState() { return _drag; }
 
