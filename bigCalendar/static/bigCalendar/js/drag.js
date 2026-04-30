@@ -79,7 +79,7 @@ export function init(sm, canvas, dragCanvas, scheduleRender, onEventClick) {
     return true;
   };
 
-  window.addEventListener('mousemove', (e) => {
+  function _onMouseMove(e) {
     if (_pendingDrag) {
       const dist = Math.hypot(e.clientX - _pendingDrag.startClientX, e.clientY - _pendingDrag.startClientY);
       if (dist > 5) {
@@ -95,9 +95,9 @@ export function init(sm, canvas, dragCanvas, scheduleRender, onEventClick) {
     _drag.curClientY = e.clientY;
     _recalc();
     _scheduleGhost();
-  });
+  }
 
-  window.addEventListener('mouseup', async (e) => {
+  async function _onMouseUp(e) {
     if (_pendingDrag) {
       // mouse barely moved — treat as click, drag was not yet activated
       clearTimeout(_dragTimer);
@@ -114,7 +114,10 @@ export function init(sm, canvas, dragCanvas, scheduleRender, onEventClick) {
     document.body.style.cursor = '';
 
     await _commitDrag(drag);
-  });
+  }
+
+  window.addEventListener('mousemove', _onMouseMove);
+  window.addEventListener('mouseup',   _onMouseUp);
 
   sm.onDragTouchMove = (clientX, clientY) => {
     if (!_drag) return;
@@ -129,6 +132,11 @@ export function init(sm, canvas, dragCanvas, scheduleRender, onEventClick) {
     const drag = _drag;
     _drag = null;
     await _commitDrag(drag);
+  };
+
+  return function destroy() {
+    window.removeEventListener('mousemove', _onMouseMove);
+    window.removeEventListener('mouseup',   _onMouseUp);
   };
 }
 
