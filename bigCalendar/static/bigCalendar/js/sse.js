@@ -5,7 +5,7 @@ export function connect(onMessage) {
     try { onMessage(JSON.parse(e.data)); } catch {}
   };
 
-  // EventSource переподключается автоматически, но при явной ошибке — пересоздаём
+  // EventSource reconnects automatically, but on explicit error — recreate it
   source.onerror = () => {
     source.close();
     setTimeout(() => connect(onMessage), 3000);

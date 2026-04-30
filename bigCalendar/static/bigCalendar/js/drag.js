@@ -5,7 +5,7 @@ import * as api from './api.js';
 import { startMove, cancelMove } from './animations.js';
 
 const MS = 86400000;
-const EDGE_PX   = 60;  // px от края — начало авто-скролла
+const EDGE_PX   = 60;  // px from edge — auto-scroll threshold
 const MAX_SPEED = 15;  // px/frame
 
 const _fmt = d =>
@@ -49,7 +49,7 @@ export function init(sm, canvas, dragCanvas, scheduleRender, onEventClick) {
     const ev      = hitTestEvent(canvasX, canvasY, sm, store);
     if (!ev) return false;
 
-    // сколько дней от начала события до точки клика — чтобы событие не прыгало при drag'е
+    // days from event start to click point — keeps event from jumping on drag
     const colIdx          = sm.firstColIndex + Math.floor((canvasX - ROOM_COL_W + sm.colOffset) / CELL_W);
     const dayUnderCursor  = sm.windowDays[Math.max(0, Math.min(sm.windowDays.length - 1, colIdx))];
     const clickDayOffset  = Math.round((dayUnderCursor.getTime() - ev.start.getTime()) / MS);
@@ -70,7 +70,7 @@ export function init(sm, canvas, dragCanvas, scheduleRender, onEventClick) {
       sm, canvas, dragCtx, scheduleRender,
     };
 
-    // активируем визуальный drag только после задержки, чтобы простой клик не мигал
+    // activate visual drag only after delay so a plain click doesn't flicker
     _dragTimer = setTimeout(() => {
       if (_pendingDrag) {
         _drag = _pendingDrag;
@@ -103,7 +103,7 @@ export function init(sm, canvas, dragCanvas, scheduleRender, onEventClick) {
 
   window.addEventListener('mouseup', async (e) => {
     if (_pendingDrag) {
-      // мышь почти не двигалась — это клик, drag ещё не активировался
+      // mouse barely moved — treat as click, drag was not yet activated
       clearTimeout(_dragTimer);
       _dragTimer = null;
       const pending = _pendingDrag;
@@ -161,13 +161,13 @@ async function _commitDrag(drag) {
   drag.scheduleRender();
 }
 
-// пересчёт целевой позиции относительно текущего viewport
+// recalculate target position relative to current viewport
 function _recalc() {
   const { ev, clickDayOffset, sm, canvas } = _drag;
   const rect    = canvas.getBoundingClientRect();
   const canvasX = _drag.curClientX - rect.left;
 
-  // день под курсором в текущем viewport
+  // day under cursor in current viewport
   const colIdx         = sm.firstColIndex + Math.floor((canvasX - ROOM_COL_W + sm.colOffset) / CELL_W);
   const dayUnderCursor = sm.windowDays[Math.max(0, Math.min(sm.windowDays.length - 1, colIdx))];
 
