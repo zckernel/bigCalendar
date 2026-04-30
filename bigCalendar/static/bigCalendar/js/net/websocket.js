@@ -11,7 +11,7 @@ function _connect() {
   const ws = new WebSocket(`${proto}://${location.host}/bigcalendar/ws/events/`);
 
   ws.onmessage = (e) => {
-    if (_onUpdate) _onUpdate(JSON.parse(e.data));
+    if (_onUpdate) {_onUpdate(JSON.parse(e.data));}
   };
 
   ws.onclose = () => setTimeout(_connect, RECONNECT_DELAY);

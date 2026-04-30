@@ -19,7 +19,7 @@ export async function moveEvent(id, roomId, start, end) {
     headers: { 'Content-Type': 'application/json', 'X-Api-Key': window.API_KEY },
     body: JSON.stringify({ room_id: roomId, event_start: start, event_end: end }),
   });
-  if (!res.ok) throw new Error('move failed');
+  if (!res.ok) {throw new Error('move failed');}
   const data = await res.json();
   return data.event;
 }
@@ -30,7 +30,7 @@ export async function updateEvent(id, eventType) {
     headers: { 'Content-Type': 'application/json', 'X-Api-Key': window.API_KEY },
     body: JSON.stringify({ event_type: eventType }),
   });
-  if (!res.ok) throw new Error('update failed');
+  if (!res.ok) {throw new Error('update failed');}
   const data = await res.json();
   return data.event;
 }

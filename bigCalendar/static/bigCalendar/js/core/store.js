@@ -1,5 +1,5 @@
 let _rooms = [];
-let _eventsByRoom = new Map();
+const _eventsByRoom = new Map();
 
 export function setRooms(data) {
   _rooms = data;
@@ -11,8 +11,8 @@ export function getRooms() {
 
 export function setEvents(data) {
   _eventsByRoom.clear();
-  for (const e of data) _insertEvent(_parse(e));
-  for (const arr of _eventsByRoom.values()) arr.sort(_byStart);
+  for (const e of data) {_insertEvent(_parse(e));}
+  for (const arr of _eventsByRoom.values()) {arr.sort(_byStart);}
 }
 
 export function applyUpdates(events) {
@@ -24,11 +24,11 @@ export function applyUpdates(events) {
       const idx = arr.findIndex(x => x.id === e.id);
       if (idx >= 0) { old = arr[idx]; arr.splice(idx, 1); break; }
     }
-    if (!_eventsByRoom.has(e.room_id)) _eventsByRoom.set(e.room_id, []);
+    if (!_eventsByRoom.has(e.room_id)) {_eventsByRoom.set(e.room_id, []);}
     const arr = _eventsByRoom.get(e.room_id);
     arr.push(parsed);
     arr.sort(_byStart);
-    if (old) moved.push({ ev: parsed, fromStart: old.start, fromEnd: old.end, fromRoomId: old.roomId });
+    if (old) {moved.push({ ev: parsed, fromStart: old.start, fromEnd: old.end, fromRoomId: old.roomId });}
   }
   return moved;
 }
@@ -38,7 +38,7 @@ export function getEventsForRoom(roomId) {
 }
 
 function _insertEvent(parsed) {
-  if (!_eventsByRoom.has(parsed.roomId)) _eventsByRoom.set(parsed.roomId, []);
+  if (!_eventsByRoom.has(parsed.roomId)) {_eventsByRoom.set(parsed.roomId, []);}
   _eventsByRoom.get(parsed.roomId).push(parsed);
 }
 

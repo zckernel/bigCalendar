@@ -3,12 +3,12 @@ import { CELL_W, CELL_H, HEADER_H, ROOM_COL_W, EVENT_PAD, DAYS_OF_WEEK, EVENT_CO
 const MS = 86400000;
 
 export function hitTestEvent(canvasX, canvasY, sm, store) {
-  if (canvasY < HEADER_H || canvasX < ROOM_COL_W) return null;
+  if (canvasY < HEADER_H || canvasX < ROOM_COL_W) {return null;}
   const roomIdx = sm.firstRowIndex + Math.floor((canvasY - HEADER_H + sm.rowOffset) / CELL_H);
   const rooms = store.getRooms();
-  if (roomIdx < 0 || roomIdx >= rooms.length) return null;
+  if (roomIdx < 0 || roomIdx >= rooms.length) {return null;}
   const dayIdx = sm.firstColIndex + Math.floor((canvasX - ROOM_COL_W + sm.colOffset) / CELL_W);
-  if (dayIdx < 0 || dayIdx >= sm.windowDays.length) return null;
+  if (dayIdx < 0 || dayIdx >= sm.windowDays.length) {return null;}
   const clickedDayMs = sm.windowDays[dayIdx].getTime();
   const events = store.getEventsForRoom(rooms[roomIdx].id);
   return events.find(ev => ev.start.getTime() <= clickedDayMs && clickedDayMs <= ev.end.getTime()) || null;
@@ -24,12 +24,12 @@ export function render(ctx, W, H, sm, store, dragState = null, getInterp = null)
 
 export function renderGhost(dragCtx, W, H, sm, dragState) {
   dragCtx.clearRect(0, 0, W, H);
-  if (!dragState || !dragState.targetStart) return;
+  if (!dragState || !dragState.targetStart) {return;}
 
   const { targetRoomIdx, targetStart, targetEnd, hasOverlap } = dragState;
   const rowScreenIdx = targetRoomIdx - sm.firstRowIndex;
   const rowTop = HEADER_H + rowScreenIdx * CELL_H - sm.rowOffset;
-  if (rowTop + CELL_H < HEADER_H || rowTop > H) return;
+  if (rowTop + CELL_H < HEADER_H || rowTop > H) {return;}
 
   const startColIdx = Math.round((targetStart.getTime() - sm.windowStart.getTime()) / MS);
   const endColIdx   = Math.round((targetEnd.getTime()   - sm.windowStart.getTime()) / MS);
@@ -37,7 +37,7 @@ export function renderGhost(dragCtx, W, H, sm, dragState) {
   const eventRight  = ROOM_COL_W + (endColIdx - sm.firstColIndex + 1) * CELL_W - sm.colOffset;
   const clippedLeft  = Math.max(eventLeft, ROOM_COL_W);
   const clippedRight = Math.min(eventRight, W);
-  if (clippedRight <= clippedLeft) return;
+  if (clippedRight <= clippedLeft) {return;}
 
   const eventTop    = rowTop + EVENT_PAD;
   const eventHeight = CELL_H - EVENT_PAD * 2;
@@ -60,7 +60,7 @@ function _drawGrid(ctx, W, H, sm, store, dragState, getInterp) {
 
   for (let ri = 0; ri < visibleRowCount; ri++) {
     const roomIdx = sm.firstRowIndex + ri;
-    if (roomIdx >= rooms.length) continue;
+    if (roomIdx >= rooms.length) {continue;}
     const rowTop = HEADER_H + ri * CELL_H - sm.rowOffset;
 
     ctx.fillStyle = (roomIdx % 2 === 0) ? '#ffffff' : '#f8f8f8';
@@ -79,7 +79,7 @@ function _drawGrid(ctx, W, H, sm, store, dragState, getInterp) {
 }
 
 function _drawEvents(ctx, W, sm, events, rowTop, dragId, getInterp, rooms, overlays) {
-  if (!events.length) return;
+  if (!events.length) {return;}
   const eventHeight = CELL_H - EVENT_PAD * 2;
 
   for (const ev of events) {
@@ -113,7 +113,7 @@ function _drawEvents(ctx, W, sm, events, rowTop, dragId, getInterp, rooms, overl
 
     const clippedLeft  = Math.max(eventLeft, ROOM_COL_W);
     const clippedRight = Math.min(eventRight, W);
-    if (clippedRight <= clippedLeft) continue;
+    if (clippedRight <= clippedLeft) {continue;}
 
     if (ev.id === dragId) {
       _drawHatching(ctx, clippedLeft, eventTop, clippedRight - clippedLeft, eventHeight);
@@ -172,7 +172,7 @@ function _drawRoomNames(ctx, H, sm, store) {
 
   for (let ri = 0; ri < visibleRowCount; ri++) {
     const roomIdx = sm.firstRowIndex + ri;
-    if (roomIdx >= rooms.length) continue;
+    if (roomIdx >= rooms.length) {continue;}
     const rowTop = HEADER_H + ri * CELL_H - sm.rowOffset;
 
     ctx.fillStyle = (roomIdx % 2 === 0) ? '#e8eaf6' : '#ede7f6';
@@ -195,7 +195,7 @@ function _drawHeader(ctx, W, sm) {
 
   for (let ci = 0; ci < visibleColCount; ci++) {
     const dayIdx = sm.firstColIndex + ci;
-    if (dayIdx < 0 || dayIdx >= sm.windowDays.length) continue;
+    if (dayIdx < 0 || dayIdx >= sm.windowDays.length) {continue;}
     const day = sm.windowDays[dayIdx];
     const colLeft  = ROOM_COL_W + ci * CELL_W - sm.colOffset;
     const isWeekend = day.getDay() === 0 || day.getDay() === 6;

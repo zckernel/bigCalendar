@@ -4,7 +4,7 @@ import { connect as wsConnect }  from './net/websocket.js';
 import { connect as sseConnect } from './net/sse.js';
 import { ScrollManager }               from './ui/scroll.js';
 import { render, hitTestEvent }        from './ui/renderer.js';
-import { init as initDrag, getDragState, cancelDragIfConflict } from './ui/drag.js';
+import { init as initDrag, getDragState, cancelDragIfConflict, isOwnMove } from './ui/drag.js';
 import { startMove, hasActive, getInterp } from './ui/animations.js';
 
 const canvas       = document.getElementById('canvas');
@@ -18,12 +18,12 @@ const popup        = document.getElementById('type-popup');
 let W = 0, H = 0, rafPending = false;
 
 function scheduleRender() {
-  if (rafPending) return;
+  if (rafPending) {return;}
   rafPending = true;
   requestAnimationFrame(() => {
     rafPending = false;
     render(ctx, W, H, sm, store, getDragState(), getInterp);
-    if (hasActive()) scheduleRender();
+    if (hasActive()) {scheduleRender();}
   });
 }
 
@@ -58,7 +58,7 @@ function hidePopup() {
 const _conflictToast = document.getElementById('conflict-toast');
 let _toastTimer = null;
 function showConflictToast() {
-  if (_toastTimer) clearTimeout(_toastTimer);
+  if (_toastTimer) {clearTimeout(_toastTimer);}
   _conflictToast.classList.add('visible');
   _toastTimer = setTimeout(() => {
     _conflictToast.classList.remove('visible');
@@ -68,10 +68,10 @@ function showConflictToast() {
 
 popup.addEventListener('click', async (e) => {
   const btn = e.target.closest('button');
-  if (!btn || !popup._targetEvent) return;
+  if (!btn || !popup._targetEvent) {return;}
   const typeMap = { 'btn-booked': 'booked', 'btn-maintenance': 'maintenance', 'btn-empty': 'empty' };
   const newType = Object.entries(typeMap).find(([cls]) => btn.classList.contains(cls))?.[1];
-  if (!newType) return;
+  if (!newType) {return;}
 
   const ev = popup._targetEvent;
   hidePopup();
@@ -86,7 +86,7 @@ popup.addEventListener('click', async (e) => {
 });
 
 document.addEventListener('mousedown', (e) => {
-  if (!popup.contains(e.target)) hidePopup();
+  if (!popup.contains(e.target)) {hidePopup();}
 });
 
 // ── init ─────────────────────────────────────────────────────────────────────
@@ -117,18 +117,19 @@ async function init() {
   sm.onGridClick = (e) => {
     const rect = canvas.getBoundingClientRect();
     const ev = hitTestEvent(e.clientX - rect.left, e.clientY - rect.top, sm, store);
-    if (ev) showPopup(e.clientX, e.clientY, ev);
-    else hidePopup();
+    if (ev) {showPopup(e.clientX, e.clientY, ev);}
+    else {hidePopup();}
   };
 
   const connect = window.REALTIME_TRANSPORT === 'sse' ? sseConnect : wsConnect;
   connect((msg) => {
     if (msg.type === 'events_changed') {
-      const conflicted = msg.events.some(e => cancelDragIfConflict(e.id));
+      // skip conflict check for updates caused by our own move to avoid rolling back a new drag
+      const conflicted = msg.events.some(e => !isOwnMove(e.id) && cancelDragIfConflict(e.id));
       const moved = store.applyUpdates(msg.events);
-      for (const m of moved) startMove(m.ev, m.fromStart, m.fromEnd, m.fromRoomId);
+      for (const m of moved) {startMove(m.ev, m.fromStart, m.fromEnd, m.fromRoomId);}
       scheduleRender();
-      if (conflicted) showConflictToast();
+      if (conflicted) {showConflictToast();}
     }
   });
 }

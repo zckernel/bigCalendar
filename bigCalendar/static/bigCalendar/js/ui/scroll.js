@@ -66,13 +66,13 @@ export class ScrollManager {
   _checkBounds() {
     const threshold = BUFFER_DAYS * CELL_W * 0.25;
     const rightEdge = (this.windowDays.length - this.visibleCols()) * CELL_W;
-    if      (this.offsetX > rightEdge - threshold) this._shiftRight();
-    else if (this.offsetX < threshold)             this._shiftLeft();
+    if      (this.offsetX > rightEdge - threshold) {this._shiftRight();}
+    else if (this.offsetX < threshold)             {this._shiftLeft();}
   }
 
   _shiftRight() {
     const last = this.windowDays[this.windowDays.length - 1];
-    for (let i = 1; i <= BUFFER_DAYS; i++) this.windowDays.push(addDays(last, i));
+    for (let i = 1; i <= BUFFER_DAYS; i++) {this.windowDays.push(addDays(last, i));}
     this.windowDays.splice(0, BUFFER_DAYS);
     this.offsetX -= BUFFER_DAYS * CELL_W;
   }
@@ -114,28 +114,28 @@ export class ScrollManager {
 
     let drag = false, moved = false, sx, sy, sox, soy;
     wrapper.addEventListener('mousedown', (e) => {
-      if (e.target === vscroll) return;
-      if (this.onDragIntercept && this.onDragIntercept(e)) return;
+      if (e.target === vscroll) {return;}
+      if (this.onDragIntercept && this.onDragIntercept(e)) {return;}
       drag = true; moved = false;
       sx = e.clientX; sy = e.clientY; sox = this.offsetX; soy = this.offsetY;
       wrapper.classList.add('grabbing');
     });
     window.addEventListener('mousemove', (e) => {
-      if (!drag) return;
-      if (!moved && (Math.abs(e.clientX - sx) > 4 || Math.abs(e.clientY - sy) > 4)) moved = true;
+      if (!drag) {return;}
+      if (!moved && (Math.abs(e.clientX - sx) > 4 || Math.abs(e.clientY - sy) > 4)) {moved = true;}
       this.offsetX = Math.max(0, sox + (sx - e.clientX));
       this.offsetY = soy + (sy - e.clientY);
       this._clampY(); vscroll.scrollTop = this.offsetY;
       this._checkBounds(); this._onScroll();
     });
     window.addEventListener('mouseup', (e) => {
-      if (drag && !moved && this.onGridClick) this.onGridClick(e);
+      if (drag && !moved && this.onGridClick) {this.onGridClick(e);}
       drag = false; wrapper.classList.remove('grabbing');
     });
 
     let tx, ty, tox, toy, tMoved, tDragging, _lpTimer;
     wrapper.addEventListener('touchstart', (e) => {
-      if (e.touches.length !== 1) return;
+      if (e.touches.length !== 1) {return;}
       e.preventDefault();
       tx = e.touches[0].clientX; ty = e.touches[0].clientY;
       tox = this.offsetX; toy = this.offsetY;
@@ -145,34 +145,34 @@ export class ScrollManager {
         if (!tMoved && this.onDragIntercept) {
           if (this.onDragIntercept({ clientX: tx, clientY: ty })) {
             tDragging = true;
-            if (navigator.vibrate) navigator.vibrate(40);
+            if (navigator.vibrate) {navigator.vibrate(40);}
           }
         }
       }, 350);
     }, { passive: false });
     wrapper.addEventListener('touchmove', (e) => {
-      if (e.touches.length !== 1) return;
+      if (e.touches.length !== 1) {return;}
       e.preventDefault();
       if (!tMoved && (Math.abs(e.touches[0].clientX - tx) > 6 || Math.abs(e.touches[0].clientY - ty) > 6)) {
         tMoved = true;
         if (_lpTimer) { clearTimeout(_lpTimer); _lpTimer = null; }
       }
       if (tDragging) {
-        if (this.onDragTouchMove) this.onDragTouchMove(e.touches[0].clientX, e.touches[0].clientY);
+        if (this.onDragTouchMove) {this.onDragTouchMove(e.touches[0].clientX, e.touches[0].clientY);}
         return;
       }
       const rawX = Math.max(0, tox + (tx - e.touches[0].clientX));
       this.offsetX = rawX;
       this._checkBounds();
-      if (this.offsetX !== rawX) tox += this.offsetX - rawX;
+      if (this.offsetX !== rawX) {tox += this.offsetX - rawX;}
       this.offsetY = toy + (ty - e.touches[0].clientY);
       this._clampY(); vscroll.scrollTop = this.offsetY;
       this._onScroll();
     }, { passive: false });
-    wrapper.addEventListener('touchend', (e) => {
+    wrapper.addEventListener('touchend', () => {
       if (_lpTimer) { clearTimeout(_lpTimer); _lpTimer = null; }
       if (tDragging) {
-        if (this.onDragTouchEnd) this.onDragTouchEnd();
+        if (this.onDragTouchEnd) {this.onDragTouchEnd();}
       } else if (!tMoved && this.onGridClick) {
         this.onGridClick({ clientX: tx, clientY: ty });
       }
