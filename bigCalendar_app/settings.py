@@ -34,7 +34,7 @@ ALLOWED_HOSTS = [
     "0.0.0.0",
     "zckernel.com",
     "www.zckernel.com",
-    "192.168.1.118"
+    "192.168.1.107"
 ]
 
 # Application definition

@@ -4,7 +4,7 @@ import { connect as wsConnect }  from './websocket.js';
 import { connect as sseConnect } from './sse.js';
 import { ScrollManager }               from './scroll.js';
 import { render, hitTestEvent }        from './renderer.js';
-import { init as initDrag, getDragState } from './drag.js';
+import { init as initDrag, getDragState, cancelDragIfConflict } from './drag.js';
 import { startMove, hasActive, getInterp } from './animations.js';
 
 const canvas       = document.getElementById('canvas');
@@ -53,6 +53,17 @@ function showPopup(x, y, event) {
 function hidePopup() {
   popup.classList.remove('visible');
   popup._targetEvent = null;
+}
+
+const _conflictToast = document.getElementById('conflict-toast');
+let _toastTimer = null;
+function showConflictToast() {
+  if (_toastTimer) clearTimeout(_toastTimer);
+  _conflictToast.classList.add('visible');
+  _toastTimer = setTimeout(() => {
+    _conflictToast.classList.remove('visible');
+    _toastTimer = null;
+  }, 3000);
 }
 
 popup.addEventListener('click', async (e) => {
@@ -113,9 +124,11 @@ async function init() {
   const connect = window.REALTIME_TRANSPORT === 'sse' ? sseConnect : wsConnect;
   connect((msg) => {
     if (msg.type === 'events_changed') {
+      const conflicted = msg.events.some(e => cancelDragIfConflict(e.id));
       const moved = store.applyUpdates(msg.events);
       for (const m of moved) startMove(m.ev, m.fromStart, m.fromEnd, m.fromRoomId);
       scheduleRender();
+      if (conflicted) showConflictToast();
     }
   });
 }

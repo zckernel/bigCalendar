@@ -20,6 +20,25 @@ const DRAG_DELAY_MS = 150;
 
 export function getDragState() { return _drag; }
 
+export function cancelDragIfConflict(eventId) {
+  if (_pendingDrag && _pendingDrag.ev.id === eventId) {
+    clearTimeout(_dragTimer);
+    _dragTimer = null;
+    _pendingDrag = null;
+    return true;
+  }
+  if (!_drag || _drag.ev.id !== eventId) return false;
+  const drag = _drag;
+  _drag = null;
+  document.body.style.cursor = '';
+  drag.sm.windowDays = drag.savedWindowDays.slice();
+  drag.sm.offsetX    = drag.savedOffsetX;
+  drag.sm.scroll(0, drag.savedOffsetY - drag.sm.offsetY);
+  drag.dragCtx.clearRect(0, 0, drag.canvas.width, drag.canvas.height);
+  drag.scheduleRender();
+  return true;
+}
+
 export function init(sm, canvas, dragCanvas, scheduleRender, onEventClick) {
   const dragCtx = dragCanvas.getContext('2d');
 
@@ -45,6 +64,9 @@ export function init(sm, canvas, dragCanvas, scheduleRender, onEventClick) {
       targetStart: ev.start,
       targetEnd:   ev.end,
       hasOverlap:  false,
+      savedWindowDays: sm.windowDays.slice(),
+      savedOffsetX:    sm.offsetX,
+      savedOffsetY:    sm.offsetY,
       sm, canvas, dragCtx, scheduleRender,
     };
 
@@ -211,6 +233,9 @@ function _hasOverlap(roomId, start, end, excludeId) {
 
 function _snapBack(drag) {
   drag.dragCtx.clearRect(0, 0, drag.canvas.width, drag.canvas.height);
+  drag.sm.windowDays = drag.savedWindowDays.slice();
+  drag.sm.offsetX    = drag.savedOffsetX;
+  drag.sm.scroll(0, drag.savedOffsetY - drag.sm.offsetY);
   const draggedRoomId = store.getRooms()[drag.targetRoomIdx]?.id ?? drag.ev.roomId;
   startMove(drag.ev, drag.targetStart, drag.targetEnd, draggedRoomId);
   drag.scheduleRender();

@@ -60,6 +60,22 @@
     #type-popup .btn-booked      { background: #1E88E5; color: #fff; }
     #type-popup .btn-maintenance { background: #E53935; color: #fff; }
     #type-popup .btn-empty       { background: #FDD835; color: #333; }
+    #conflict-toast {
+      position: fixed;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #E65100;
+      color: #fff;
+      padding: 8px 18px;
+      border-radius: 6px;
+      font: bold 12px monospace;
+      z-index: 200;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity .2s;
+    }
+    #conflict-toast.visible { opacity: 1; }
   </style>
 </head>
 <body>
@@ -68,6 +84,7 @@
   <canvas id="drag-canvas"></canvas>
   <div id="vscroll"><div id="vscroll-inner"></div></div>
 </div>
+<div id="conflict-toast">Event modified by another user — drag cancelled</div>
 <div id="type-popup">
   <button class="btn-booked">Booked</button>
   <button class="btn-maintenance">Maintenance</button>
