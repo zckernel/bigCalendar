@@ -1,11 +1,11 @@
-import * as store    from './store.js';
-import * as api      from './api.js';
-import { connect as wsConnect }  from './websocket.js';
-import { connect as sseConnect } from './sse.js';
-import { ScrollManager }               from './scroll.js';
-import { render, hitTestEvent }        from './renderer.js';
-import { init as initDrag, getDragState, cancelDragIfConflict } from './drag.js';
-import { startMove, hasActive, getInterp } from './animations.js';
+import * as store    from './core/store.js';
+import * as api      from './net/api.js';
+import { connect as wsConnect }  from './net/websocket.js';
+import { connect as sseConnect } from './net/sse.js';
+import { ScrollManager }               from './ui/scroll.js';
+import { render, hitTestEvent }        from './ui/renderer.js';
+import { init as initDrag, getDragState, cancelDragIfConflict } from './ui/drag.js';
+import { startMove, hasActive, getInterp } from './ui/animations.js';
 
 const canvas       = document.getElementById('canvas');
 const dragCanvas   = document.getElementById('drag-canvas');

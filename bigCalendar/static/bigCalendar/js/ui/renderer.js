@@ -1,4 +1,4 @@
-import { CELL_W, CELL_H, HEADER_H, ROOM_COL_W, EVENT_PAD, DAYS_OF_WEEK, EVENT_COLORS } from './config.js';
+import { CELL_W, CELL_H, HEADER_H, ROOM_COL_W, EVENT_PAD, DAYS_OF_WEEK, EVENT_COLORS } from '../core/config.js';
 
 const MS = 86400000;
 

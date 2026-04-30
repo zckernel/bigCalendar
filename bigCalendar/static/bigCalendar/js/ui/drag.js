@@ -1,7 +1,7 @@
-import { CELL_W, CELL_H, HEADER_H, ROOM_COL_W, MS, EDGE_PX, MAX_SPEED, DRAG_DELAY_MS } from './config.js';
+import { CELL_W, CELL_H, HEADER_H, ROOM_COL_W, MS, EDGE_PX, MAX_SPEED, DRAG_DELAY_MS } from '../core/config.js';
 import { hitTestEvent, renderGhost } from './renderer.js';
-import * as store from './store.js';
-import * as api from './api.js';
+import * as store from '../core/store.js';
+import * as api from '../net/api.js';
 import { startMove, cancelMove } from './animations.js';
 
 
