@@ -160,10 +160,11 @@ export function init(sm, canvas, dragCanvas, scheduleRender, onEventClick) {
 async function _commitDrag(drag) {
   if (drag.hasOverlap) { _snapBack(drag); return; }
 
+  const _origRoomIdx = store.getRooms().findIndex(r => r.id === drag.ev.roomId);
   const _dropGhostState = {
-    targetRoomIdx: drag.targetRoomIdx,
-    targetStart:   drag.targetStart,
-    targetEnd:     drag.targetEnd,
+    targetRoomIdx: _origRoomIdx >= 0 ? _origRoomIdx : drag.targetRoomIdx,
+    targetStart:   drag.ev.start,
+    targetEnd:     drag.ev.end,
     hasOverlap:    false,
   };
   const _dropT0 = performance.now();
