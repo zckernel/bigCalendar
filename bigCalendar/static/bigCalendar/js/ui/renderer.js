@@ -44,9 +44,6 @@ export function renderGhost(dragCtx, W, H, sm, dragState) {
 
   dragCtx.fillStyle = hasOverlap ? 'rgba(200,0,0,0.45)' : 'rgba(80,80,80,0.35)';
   dragCtx.fillRect(clippedLeft, eventTop, clippedRight - clippedLeft, eventHeight);
-  dragCtx.strokeStyle = hasOverlap ? 'rgba(192,0,0,0.45)' : 'rgba(80,80,80,0.35)';
-  dragCtx.lineWidth = 2;
-  dragCtx.strokeRect(clippedLeft, eventTop, clippedRight - clippedLeft, eventHeight);
 }
 
 function _drawGrid(ctx, W, H, sm, store, dragState, getInterp) {
