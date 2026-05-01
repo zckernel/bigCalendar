@@ -1,6 +1,4 @@
-import { CELL_W, CELL_H, HEADER_H, ROOM_COL_W, EVENT_PAD, DAYS_OF_WEEK, EVENT_COLORS } from '../core/config.js';
-
-const MS = 86400000;
+import { CELL_W, CELL_H, HEADER_H, ROOM_COL_W, EVENT_PAD, DAYS_OF_WEEK, EVENT_COLORS, MS } from '../core/config.js';
 
 export function hitTestEvent(canvasX, canvasY, sm, store) {
   if (canvasY < HEADER_H || canvasX < ROOM_COL_W) {return null;}

@@ -10,6 +10,7 @@ export const MS            = 86400000; // milliseconds in one day
 export const EDGE_PX       = 60;       // px from edge — auto-scroll threshold
 export const MAX_SPEED     = 15;       // px/frame max scroll speed
 export const DRAG_DELAY_MS = 150;      // delay before visual drag activates
+export const DURATION      = 1000;     // ms for event move animation (when dropping on a new date/room)
 
 export const EVENT_COLORS = {
   empty:       '#FDD835',

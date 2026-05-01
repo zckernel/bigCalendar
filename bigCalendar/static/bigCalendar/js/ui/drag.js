@@ -1,8 +1,8 @@
-import { CELL_W, CELL_H, HEADER_H, ROOM_COL_W, MS, EDGE_PX, MAX_SPEED, DRAG_DELAY_MS } from '../core/config.js';
+import { CELL_W, CELL_H, HEADER_H, ROOM_COL_W, MS, EDGE_PX, MAX_SPEED, DRAG_DELAY_MS, DURATION } from '../core/config.js';
 import { hitTestEvent, renderGhost } from './renderer.js';
 import * as store from '../core/store.js';
 import * as api from '../net/api.js';
-import { startMove, cancelMove, DURATION as ANIM_DURATION } from './animations.js';
+import { startMove, cancelMove } from './animations.js';
 
 
 const _fmt = d =>
@@ -171,7 +171,7 @@ async function _commitDrag(drag) {
   const _dropToken = ++_snapBackGhostToken;
   (function _animateDrop() {
     if (_snapBackGhostToken !== _dropToken) { return; }
-    const raw = Math.min(1, (performance.now() - _dropT0) / ANIM_DURATION);
+    const raw = Math.min(1, (performance.now() - _dropT0) / DURATION);
     if (raw >= 1) { drag.dragCtx.clearRect(0, 0, drag.canvas.width, drag.canvas.height); return; }
     drag.dragCtx.globalAlpha = Math.pow(1 - raw, 3);
     renderGhost(drag.dragCtx, drag.canvas.width, drag.canvas.height, drag.sm, _dropGhostState);
@@ -288,7 +288,7 @@ function _snapBack(drag) {
   const _myToken = ++_snapBackGhostToken;
   (function _animateGhost() {
     if (_snapBackGhostToken !== _myToken) { return; }
-    const raw = Math.min(1, (performance.now() - _t0) / ANIM_DURATION);
+    const raw = Math.min(1, (performance.now() - _t0) / DURATION);
     if (raw >= 1) { drag.dragCtx.clearRect(0, 0, drag.canvas.width, drag.canvas.height); return; }
     drag.dragCtx.globalAlpha = Math.pow(1 - raw, 3);
     renderGhost(drag.dragCtx, drag.canvas.width, drag.canvas.height, drag.sm, _ghostState);

@@ -1,4 +1,5 @@
-export const DURATION = 1000;
+import { DURATION } from '../core/config.js';
+
 const _anims = new Map();
 
 function easeOut(t) { return 1 - Math.pow(1 - t, 3); }

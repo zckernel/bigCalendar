@@ -1,6 +1,5 @@
-import { CELL_W, CELL_H, HEADER_H, ROOM_COL_W, BUFFER_DAYS } from '../core/config.js';
+import { CELL_W, CELL_H, HEADER_H, ROOM_COL_W, BUFFER_DAYS, MS } from '../core/config.js';
 
-const MS = 86400000;
 const addDays = (d, n) => new Date(d.getTime() + n * MS);
 
 export class ScrollManager {
