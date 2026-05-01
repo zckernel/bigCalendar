@@ -17,3 +17,7 @@ export const EVENT_COLORS = {
   booked:      '#1E88E5',
   maintenance: '#E53935',
 };
+
+export const GHOST_ALPHA         = 0.35;
+export const GHOST_OVERLAP_ALPHA = 0.45;
+export const EVENT_LABEL_ALPHA   = 0.85;

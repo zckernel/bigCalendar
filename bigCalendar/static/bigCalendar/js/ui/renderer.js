@@ -1,4 +1,4 @@
-import { CELL_W, CELL_H, HEADER_H, ROOM_COL_W, EVENT_PAD, DAYS_OF_WEEK, EVENT_COLORS, MS } from '../core/config.js';
+import { CELL_W, CELL_H, HEADER_H, ROOM_COL_W, EVENT_PAD, DAYS_OF_WEEK, EVENT_COLORS, MS, EVENT_LABEL_ALPHA } from '../core/config.js';
 
 export function hitTestEvent(canvasX, canvasY, sm, store) {
   if (canvasY < HEADER_H || canvasX < ROOM_COL_W) {return null;}
@@ -18,6 +18,28 @@ export function render(ctx, W, H, sm, store, dragState = null, getInterp = null)
   _drawRoomNames(ctx, H, sm, store);
   _drawHeader(ctx, W, sm);
   _drawCorner(ctx);
+}
+
+export function clearDragSource(ctx, sm, ev, store) {
+  const rooms = store.getRooms();
+  const roomIdx = rooms.findIndex(r => r.id === ev.roomId);
+  if (roomIdx < 0) { return; }
+  const rowScreenIdx = roomIdx - sm.firstRowIndex;
+  const rowTop = HEADER_H + rowScreenIdx * CELL_H - sm.rowOffset;
+  const startColIdx = Math.round((ev.start.getTime() - sm.windowStart.getTime()) / MS);
+  const endColIdx   = Math.round((ev.end.getTime()   - sm.windowStart.getTime()) / MS);
+  const eventLeft  = ROOM_COL_W + (startColIdx - sm.firstColIndex) * CELL_W - sm.colOffset;
+  const eventRight = ROOM_COL_W + (endColIdx - sm.firstColIndex + 1) * CELL_W - sm.colOffset;
+  const clippedLeft  = Math.max(eventLeft, ROOM_COL_W);
+  const clippedRight = Math.min(eventRight, ctx.canvas.width);
+  if (clippedRight <= clippedLeft) { return; }
+  ctx.fillStyle = (roomIdx % 2 === 0) ? '#ffffff' : '#f8f8f8';
+  ctx.fillRect(clippedLeft, rowTop, clippedRight - clippedLeft, CELL_H);
+  ctx.strokeStyle = '#ddd';
+  for (let ci = Math.floor((clippedLeft - ROOM_COL_W + sm.colOffset) / CELL_W);
+       ci <= Math.ceil((clippedRight - ROOM_COL_W + sm.colOffset) / CELL_W); ci++) {
+    ctx.strokeRect(ROOM_COL_W + ci * CELL_W - sm.colOffset, rowTop, CELL_W, CELL_H);
+  }
 }
 
 export function renderGhost(dragCtx, W, H, sm, dragState) {
@@ -40,7 +62,7 @@ export function renderGhost(dragCtx, W, H, sm, dragState) {
   const eventTop    = rowTop + EVENT_PAD;
   const eventHeight = CELL_H - EVENT_PAD * 2;
 
-  dragCtx.fillStyle = hasOverlap ? 'rgba(200,0,0,0.45)' : 'rgba(80,80,80,0.35)';
+  dragCtx.fillStyle = hasOverlap ? 'rgb(200,0,0)' : 'rgb(80,80,80)';
   dragCtx.fillRect(clippedLeft, eventTop, clippedRight - clippedLeft, eventHeight);
 }
 
@@ -134,7 +156,7 @@ function _paintEvent(ctx, ev, clippedLeft, clippedRight, eventLeft, eventTop, ev
     ctx.beginPath();
     ctx.rect(clippedLeft, eventTop, clippedRight - clippedLeft, eventHeight);
     ctx.clip();
-    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.fillStyle = `rgba(255,255,255,${EVENT_LABEL_ALPHA})`;
     ctx.font = 'bold 9px monospace';
     ctx.textBaseline = 'middle';
     ctx.fillText(ev.type, labelX, eventTop + eventHeight / 2);

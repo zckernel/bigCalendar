@@ -1,5 +1,5 @@
-import { CELL_W, CELL_H, HEADER_H, ROOM_COL_W, MS, EDGE_PX, MAX_SPEED, DRAG_DELAY_MS, DURATION } from '../core/config.js';
-import { hitTestEvent, renderGhost } from './renderer.js';
+import { CELL_W, CELL_H, HEADER_H, ROOM_COL_W, MS, EDGE_PX, MAX_SPEED, DRAG_DELAY_MS, DURATION, GHOST_ALPHA, GHOST_OVERLAP_ALPHA } from '../core/config.js';
+import { hitTestEvent, renderGhost, clearDragSource } from './renderer.js';
 import * as store from '../core/store.js';
 import * as api from '../net/api.js';
 import { startMove, cancelMove } from './animations.js';
@@ -167,13 +167,14 @@ async function _commitDrag(drag) {
     targetEnd:     drag.ev.end,
     hasOverlap:    false,
   };
+  clearDragSource(drag.canvas.getContext('2d'), drag.sm, drag.ev, store);
   const _dropT0 = performance.now();
   const _dropToken = ++_snapBackGhostToken;
   (function _animateDrop() {
     if (_snapBackGhostToken !== _dropToken) { return; }
     const raw = Math.min(1, (performance.now() - _dropT0) / DURATION);
     if (raw >= 1) { drag.dragCtx.clearRect(0, 0, drag.canvas.width, drag.canvas.height); return; }
-    drag.dragCtx.globalAlpha = Math.pow(1 - raw, 3);
+    drag.dragCtx.globalAlpha = GHOST_ALPHA * Math.pow(1 - raw, 3);
     renderGhost(drag.dragCtx, drag.canvas.width, drag.canvas.height, drag.sm, _dropGhostState);
     drag.dragCtx.globalAlpha = 1;
     requestAnimationFrame(_animateDrop);
@@ -241,7 +242,9 @@ function _scheduleGhost() {
       _scheduleGhost();
     }
 
+    _drag.dragCtx.globalAlpha = _drag.hasOverlap ? GHOST_OVERLAP_ALPHA : GHOST_ALPHA;
     renderGhost(_drag.dragCtx, _drag.canvas.width, _drag.canvas.height, _drag.sm, _drag);
+    _drag.dragCtx.globalAlpha = 1;
   });
 }
 
@@ -290,7 +293,7 @@ function _snapBack(drag) {
     if (_snapBackGhostToken !== _myToken) { return; }
     const raw = Math.min(1, (performance.now() - _t0) / DURATION);
     if (raw >= 1) { drag.dragCtx.clearRect(0, 0, drag.canvas.width, drag.canvas.height); return; }
-    drag.dragCtx.globalAlpha = Math.pow(1 - raw, 3);
+    drag.dragCtx.globalAlpha = GHOST_ALPHA * Math.pow(1 - raw, 3);
     renderGhost(drag.dragCtx, drag.canvas.width, drag.canvas.height, drag.sm, _ghostState);
     drag.dragCtx.globalAlpha = 1;
     requestAnimationFrame(_animateGhost);
