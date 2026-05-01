@@ -18,6 +18,6 @@ export const EVENT_COLORS = {
   maintenance: '#E53935',
 };
 
-export const GHOST_ALPHA         = 0.35;
-export const GHOST_OVERLAP_ALPHA = 0.45;
+export const GHOST_ALPHA         = 0.75;
+export const GHOST_OVERLAP_ALPHA = 0.75;
 export const EVENT_LABEL_ALPHA   = 0.85;

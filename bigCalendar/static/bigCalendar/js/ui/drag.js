@@ -8,6 +8,10 @@ import { startMove, cancelMove } from './animations.js';
 const _fmt = d =>
   `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 
+function _clearDragOverlay(drag) {
+  drag.dragCtx.clearRect(0, 0, drag.canvas.width, drag.canvas.height);
+}
+
 let _drag = null;
 let _pendingDrag = null;
 let _dragTimer = null;
@@ -40,7 +44,7 @@ export function cancelDragIfConflict(eventId) {
   drag.sm.windowDays = drag.savedWindowDays.slice();
   drag.sm.offsetX    = drag.savedOffsetX;
   drag.sm.scroll(0, drag.savedOffsetY - drag.sm.offsetY);
-  drag.dragCtx.clearRect(0, 0, drag.canvas.width, drag.canvas.height);
+  _clearDragOverlay(drag);
   drag.scheduleRender();
   return true;
 }
@@ -168,26 +172,14 @@ async function _commitDrag(drag) {
     hasOverlap:    false,
   };
   clearDragSource(drag.canvas.getContext('2d'), drag.sm, drag.ev, store);
-  const _dropT0 = performance.now();
-  const _dropToken = ++_snapBackGhostToken;
-  (function _animateDrop() {
-    if (_snapBackGhostToken !== _dropToken) { return; }
-    const raw = Math.min(1, (performance.now() - _dropT0) / DURATION);
-    if (raw >= 1) { drag.dragCtx.clearRect(0, 0, drag.canvas.width, drag.canvas.height); return; }
-    drag.dragCtx.globalAlpha = GHOST_ALPHA * Math.pow(1 - raw, 3);
-    renderGhost(drag.dragCtx, drag.canvas.width, drag.canvas.height, drag.sm, _dropGhostState);
-    drag.dragCtx.globalAlpha = 1;
-    requestAnimationFrame(_animateDrop);
-  }());
-
   const rooms      = store.getRooms();
   const targetRoom = rooms[drag.targetRoomIdx];
-  if (!targetRoom) { drag.scheduleRender(); return; }
+  if (!targetRoom) { _clearDragOverlay(drag); drag.scheduleRender(); return; }
 
   const unchanged =
     targetRoom.id === drag.ev.roomId &&
     drag.targetStart.getTime() === drag.ev.start.getTime();
-  if (unchanged) { drag.scheduleRender(); return; }
+  if (unchanged) { _clearDragOverlay(drag); drag.scheduleRender(); return; }
 
   try {
     const updated = await api.moveEvent(
@@ -198,7 +190,21 @@ async function _commitDrag(drag) {
     store.applyUpdates([updated]);
     cancelMove(drag.ev.id);
   } catch { /* network error — UI stays unchanged */ }
+
   drag.scheduleRender();
+
+  const _dropT0 = performance.now();
+  const _dropToken = ++_snapBackGhostToken;
+
+  requestAnimationFrame(function _animateDrop() {
+    if (_snapBackGhostToken !== _dropToken) { return; }
+    const raw = Math.min(1, (performance.now() - _dropT0) / DURATION);
+    if (raw >= 1) { _clearDragOverlay(drag); return; }
+    drag.dragCtx.globalAlpha = GHOST_ALPHA * Math.pow(1 - raw, 3);
+    renderGhost(drag.dragCtx, drag.canvas.width, drag.canvas.height, drag.sm, _dropGhostState);
+    drag.dragCtx.globalAlpha = 1;
+    requestAnimationFrame(_animateDrop);
+  });
 }
 
 // recalculate target position relative to current viewport
@@ -292,7 +298,7 @@ function _snapBack(drag) {
   (function _animateGhost() {
     if (_snapBackGhostToken !== _myToken) { return; }
     const raw = Math.min(1, (performance.now() - _t0) / DURATION);
-    if (raw >= 1) { drag.dragCtx.clearRect(0, 0, drag.canvas.width, drag.canvas.height); return; }
+    if (raw >= 1) { _clearDragOverlay(drag); return; }
     drag.dragCtx.globalAlpha = GHOST_ALPHA * Math.pow(1 - raw, 3);
     renderGhost(drag.dragCtx, drag.canvas.width, drag.canvas.height, drag.sm, _ghostState);
     drag.dragCtx.globalAlpha = 1;

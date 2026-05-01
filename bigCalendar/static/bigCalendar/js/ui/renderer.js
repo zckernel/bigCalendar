@@ -62,8 +62,11 @@ export function renderGhost(dragCtx, W, H, sm, dragState) {
   const eventTop    = rowTop + EVENT_PAD;
   const eventHeight = CELL_H - EVENT_PAD * 2;
 
-  dragCtx.fillStyle = hasOverlap ? 'rgb(200,0,0)' : 'rgb(80,80,80)';
-  dragCtx.fillRect(clippedLeft, eventTop, clippedRight - clippedLeft, eventHeight);
+  if (hasOverlap) {
+    _drawHatching(dragCtx, clippedLeft, eventTop, clippedRight - clippedLeft, eventHeight, 'rgb(220,100,100)', 'rgb(200,0,0)', 1);
+  } else {
+    _drawHatching(dragCtx, clippedLeft, eventTop, clippedRight - clippedLeft, eventHeight, '#ccc', '#aaa', 1);
+  }
 }
 
 function _drawGrid(ctx, W, H, sm, store, dragState, getInterp) {
@@ -164,15 +167,15 @@ function _paintEvent(ctx, ev, clippedLeft, clippedRight, eventLeft, eventTop, ev
   }
 }
 
-function _drawHatching(ctx, x, y, w, h) {
+function _drawHatching(ctx, x, y, w, h, fillColor = '#ccc', lineColor = '#aaa', lineWidth = 1) {
   ctx.save();
   ctx.beginPath();
   ctx.rect(x, y, w, h);
   ctx.clip();
-  ctx.fillStyle = '#ccc';
+  ctx.fillStyle = fillColor;
   ctx.fillRect(x, y, w, h);
-  ctx.strokeStyle = '#aaa';
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = lineColor;
+  ctx.lineWidth = lineWidth;
   const step = 5;
   ctx.beginPath();
   for (let i = -h; i < w + h; i += step) {
