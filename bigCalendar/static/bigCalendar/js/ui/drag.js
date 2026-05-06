@@ -181,18 +181,39 @@ function _commitDrag(drag) {
     drag.targetStart.getTime() === drag.ev.start.getTime();
   if (unchanged) { _clearDragOverlay(drag); drag.scheduleRender(); return; }
 
+  const _optimistic = {
+    id:          drag.ev.id,
+    room_id:     targetRoom.id,
+    event_type:  drag.ev.type,
+    event_start: _fmt(drag.targetStart),
+    event_end:   _fmt(drag.targetEnd),
+  };
+  _ownMoves.add(drag.ev.id);
+  store.applyUpdates([_optimistic]);
+  drag.scheduleRender();
+
   const _dropT0 = performance.now();
   const _dropToken = ++_snapBackGhostToken;
 
+  const _revert = {
+    id:          drag.ev.id,
+    room_id:     drag.ev.roomId,
+    event_type:  drag.ev.type,
+    event_start: _fmt(drag.ev.start),
+    event_end:   _fmt(drag.ev.end),
+  };
   api.moveEvent(
     drag.ev.id, targetRoom.id,
     _fmt(drag.targetStart), _fmt(drag.targetEnd),
   ).then(updated => {
-    _ownMoves.add(drag.ev.id);
     store.applyUpdates([updated]);
     cancelMove(drag.ev.id);
     drag.scheduleRender();
-  }).catch(() => { /* network error — UI stays unchanged */ });
+  }).catch(() => {
+    _ownMoves.delete(drag.ev.id);
+    store.applyUpdates([_revert]);
+    drag.scheduleRender();
+  });
 
   requestAnimationFrame(function _animateDrop() {
     if (_snapBackGhostToken !== _dropToken) { return; }
