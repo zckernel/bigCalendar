@@ -161,7 +161,7 @@ export function init(sm, canvas, dragCanvas, scheduleRender, onEventClick) {
   };
 }
 
-async function _commitDrag(drag) {
+function _commitDrag(drag) {
   if (drag.hasOverlap) { _snapBack(drag); return; }
 
   const _origRoomIdx = store.getRooms().findIndex(r => r.id === drag.ev.roomId);
@@ -181,20 +181,18 @@ async function _commitDrag(drag) {
     drag.targetStart.getTime() === drag.ev.start.getTime();
   if (unchanged) { _clearDragOverlay(drag); drag.scheduleRender(); return; }
 
-  try {
-    const updated = await api.moveEvent(
-      drag.ev.id, targetRoom.id,
-      _fmt(drag.targetStart), _fmt(drag.targetEnd),
-    );
+  const _dropT0 = performance.now();
+  const _dropToken = ++_snapBackGhostToken;
+
+  api.moveEvent(
+    drag.ev.id, targetRoom.id,
+    _fmt(drag.targetStart), _fmt(drag.targetEnd),
+  ).then(updated => {
     _ownMoves.add(drag.ev.id);
     store.applyUpdates([updated]);
     cancelMove(drag.ev.id);
-  } catch { /* network error — UI stays unchanged */ }
-
-  drag.scheduleRender();
-
-  const _dropT0 = performance.now();
-  const _dropToken = ++_snapBackGhostToken;
+    drag.scheduleRender();
+  }).catch(() => { /* network error — UI stays unchanged */ });
 
   requestAnimationFrame(function _animateDrop() {
     if (_snapBackGhostToken !== _dropToken) { return; }
