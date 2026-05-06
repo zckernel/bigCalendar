@@ -1,5 +1,5 @@
 import { CELL_W, CELL_H, HEADER_H, ROOM_COL_W, MS, EDGE_PX, MAX_SPEED, DRAG_DELAY_MS, DURATION, GHOST_ALPHA, GHOST_OVERLAP_ALPHA } from '../core/config.js';
-import { hitTestEvent, renderGhost, clearDragSource } from './renderer.js';
+import { hitTestEvent, renderGhost } from './renderer.js';
 import * as store from '../core/store.js';
 import * as api from '../net/api.js';
 import { startMove, cancelMove } from './animations.js';
@@ -171,7 +171,6 @@ function _commitDrag(drag) {
     targetEnd:     drag.ev.end,
     hasOverlap:    false,
   };
-  clearDragSource(drag.canvas.getContext('2d'), drag.sm, drag.ev, store);
   const rooms      = store.getRooms();
   const targetRoom = rooms[drag.targetRoomIdx];
   if (!targetRoom) { _clearDragOverlay(drag); drag.scheduleRender(); return; }
