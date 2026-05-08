@@ -4,4 +4,4 @@
 REALTIME_TRANSPORT = 'redis'
 
 # ── Static assets ─────────────────────────────────────────────────────────────
-JS_VERSION = '1.0.15'
+JS_VERSION = '1.0.16'

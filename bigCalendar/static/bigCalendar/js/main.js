@@ -1,5 +1,5 @@
 import * as store    from './core/store.js';
-import { FETCH_RANGE_DAYS, TOOLBAR_H } from './core/config.js';
+import { TOOLBAR_H, INITIAL_LOAD_DAYS, CHUNK_DAYS, PREFETCH_THRESHOLD, EVICT_RANGE_DAYS } from './core/config.js';
 import * as api      from './net/api.js';
 import { connect as wsConnect }  from './net/websocket.js';
 import { connect as sseConnect } from './net/sse.js';
@@ -28,7 +28,7 @@ function scheduleRender() {
   });
 }
 
-const sm = new ScrollManager(wrapper, vscroll, vscrollInner, scheduleRender);
+const sm = new ScrollManager(wrapper, vscroll, vscrollInner, () => { scheduleRender(); maybePrefetch(); });
 
 function resize() {
   W = window.innerWidth;
@@ -90,6 +90,65 @@ document.addEventListener('mousedown', (e) => {
   if (!popup.contains(e.target)) {hidePopup();}
 });
 
+// ── lazy loading ─────────────────────────────────────────────────────────────
+
+const _DAY = 86400000;
+let _loadedStart = null;
+let _loadedEnd   = null;
+let _fetchingLeft  = false;
+let _fetchingRight = false;
+
+function _makeDate(days) {
+  const d = new Date(); d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
+async function _fetchAndMerge(start, end, direction) {
+  const events = await api.fetchEvents(start, end);
+  store.mergeEvents(events);
+  if (!_loadedStart || start < _loadedStart) { _loadedStart = start; }
+  if (!_loadedEnd   || end   > _loadedEnd)   { _loadedEnd   = end;   }
+
+  const rangeMs = _loadedEnd - _loadedStart;
+  const maxMs   = EVICT_RANGE_DAYS * _DAY;
+  if (rangeMs > maxMs) {
+    const excess = rangeMs - maxMs;
+    if (direction === 'right') {
+      const cutoff = new Date(_loadedStart.getTime() + excess);
+      store.evictBefore(cutoff);
+      _loadedStart = cutoff;
+    } else {
+      const cutoff = new Date(_loadedEnd.getTime() - excess);
+      store.evictAfter(cutoff);
+      _loadedEnd = cutoff;
+    }
+  }
+
+  scheduleRender();
+}
+
+function maybePrefetch() {
+  if (!_loadedStart || !_loadedEnd) { return; }
+  const days = sm.windowDays;
+  const first = days[sm.firstColIndex];
+  const last  = days[Math.min(sm.firstColIndex + sm.visibleCols(), days.length - 1)];
+  if (!first || !last) { return; }
+
+  if (!_fetchingLeft && (first - _loadedStart) / _DAY < PREFETCH_THRESHOLD) {
+    _fetchingLeft = true;
+    const end   = new Date(_loadedStart);
+    const start = new Date(_loadedStart.getTime() - CHUNK_DAYS * _DAY);
+    _fetchAndMerge(start, end, 'left').finally(() => { _fetchingLeft = false; });
+  }
+  if (!_fetchingRight && (_loadedEnd - last) / _DAY < PREFETCH_THRESHOLD) {
+    _fetchingRight = true;
+    const start = new Date(_loadedEnd);
+    const end   = new Date(_loadedEnd.getTime() + CHUNK_DAYS * _DAY);
+    _fetchAndMerge(start, end, 'right').finally(() => { _fetchingRight = false; });
+  }
+}
+
 // ── init ─────────────────────────────────────────────────────────────────────
 
 async function init() {
@@ -97,9 +156,8 @@ async function init() {
   window.addEventListener('resize', resize);
   window.addEventListener('orientationchange', () => setTimeout(resize, 100));
 
-  const today = new Date();
-  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate() - FETCH_RANGE_DAYS);
-  const end   = new Date(today.getFullYear(), today.getMonth(), today.getDate() + FETCH_RANGE_DAYS);
+  const start = _makeDate(-INITIAL_LOAD_DAYS);
+  const end   = _makeDate(+INITIAL_LOAD_DAYS);
 
   const [rooms, events] = await Promise.all([
     api.fetchRooms(),
@@ -108,6 +166,8 @@ async function init() {
 
   store.setRooms(rooms);
   store.setEvents(events);
+  _loadedStart = start;
+  _loadedEnd   = end;
   sm.setNumRooms(rooms.length);
   scheduleRender();
 
