@@ -1,6 +1,6 @@
-import { CELL_W, CELL_H, HEADER_H, ROOM_COL_W, BUFFER_DAYS, MS } from '../core/config.js';
+import { CELL_W, CELL_H, HEADER_H, ROOM_COL_W, BUFFER_DAYS } from '../core/config.js';
 
-const addDays = (d, n) => new Date(d.getTime() + n * MS);
+const addDays = (d, n) => { const r = new Date(d); r.setDate(r.getDate() + n); return r; };
 
 export class ScrollManager {
   constructor(wrapper, vscroll, vscrollInner, onScroll) {
@@ -122,10 +122,13 @@ export class ScrollManager {
     window.addEventListener('mousemove', (e) => {
       if (!drag) {return;}
       if (!moved && (Math.abs(e.clientX - sx) > 4 || Math.abs(e.clientY - sy) > 4)) {moved = true;}
-      this.offsetX = Math.max(0, sox + (sx - e.clientX));
+      const rawX = Math.max(0, sox + (sx - e.clientX));
+      this.offsetX = rawX;
       this.offsetY = soy + (sy - e.clientY);
       this._clampY(); vscroll.scrollTop = this.offsetY;
-      this._checkBounds(); this._onScroll();
+      this._checkBounds();
+      if (this.offsetX !== rawX) { sox += this.offsetX - rawX; }
+      this._onScroll();
     });
     window.addEventListener('mouseup', (e) => {
       if (drag && !moved && this.onGridClick) {this.onGridClick(e);}
