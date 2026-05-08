@@ -1,4 +1,5 @@
 import * as store    from './core/store.js';
+import { FETCH_RANGE_DAYS, TOOLBAR_H } from './core/config.js';
 import * as api      from './net/api.js';
 import { connect as wsConnect }  from './net/websocket.js';
 import { connect as sseConnect } from './net/sse.js';
@@ -31,7 +32,7 @@ const sm = new ScrollManager(wrapper, vscroll, vscrollInner, scheduleRender);
 
 function resize() {
   W = window.innerWidth;
-  H = window.innerHeight;
+  H = window.innerHeight - TOOLBAR_H;
   canvas.width      = W;
   canvas.height     = H;
   dragCanvas.width  = W;
@@ -97,8 +98,8 @@ async function init() {
   window.addEventListener('orientationchange', () => setTimeout(resize, 100));
 
   const today = new Date();
-  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 180);
-  const end   = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 180);
+  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate() - FETCH_RANGE_DAYS);
+  const end   = new Date(today.getFullYear(), today.getMonth(), today.getDate() + FETCH_RANGE_DAYS);
 
   const [rooms, events] = await Promise.all([
     api.fetchRooms(),
@@ -109,6 +110,8 @@ async function init() {
   store.setEvents(events);
   sm.setNumRooms(rooms.length);
   scheduleRender();
+
+  document.getElementById('today-btn').addEventListener('click', () => sm.scrollToToday());
 
   initDrag(sm, canvas, dragCanvas, scheduleRender, (ev, clientX, clientY) => {
     showPopup(clientX, clientY, ev);

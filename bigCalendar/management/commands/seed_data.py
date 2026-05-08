@@ -6,7 +6,7 @@ from bigCalendar.models import Room, Event
 
 TOTAL_ROOMS = 1000
 ROOM_FRACTION = 0.30
-DATE_RANGE_DAYS = 180
+DATE_RANGE_DAYS = 1000
 EVENT_TYPES = Event.EventType.values
 
 
@@ -62,7 +62,7 @@ def _generate_room_events(room_id, range_start, range_end):
     cursor = range_start + timedelta(days=random.randint(0, 10))
 
     while cursor < range_end:
-        duration = random.randint(1, 30)
+        duration = random.randint(1, 7)
         event_end = cursor + timedelta(days=duration - 1)
 
         if event_end > range_end:
@@ -75,7 +75,7 @@ def _generate_room_events(room_id, range_start, range_end):
             event_end=event_end,
         ))
 
-        gap = random.randint(0, 5)
+        gap = random.randint(0, 2)
         cursor = event_end + timedelta(days=1 + gap)
 
     return events

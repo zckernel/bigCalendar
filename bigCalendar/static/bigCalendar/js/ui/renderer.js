@@ -1,4 +1,4 @@
-import { CELL_W, CELL_H, HEADER_H, ROOM_COL_W, EVENT_PAD, DAYS_OF_WEEK, EVENT_COLORS, MS, EVENT_LABEL_ALPHA } from '../core/config.js';
+import { CELL_W, CELL_H, HEADER_H, ROOM_COL_W, EVENT_PAD, EVENT_COLORS, MS, EVENT_LABEL_ALPHA } from '../core/config.js';
 
 export function hitTestEvent(canvasX, canvasY, sm, store) {
   if (canvasY < HEADER_H || canvasX < ROOM_COL_W) {return null;}
@@ -11,6 +11,9 @@ export function hitTestEvent(canvasX, canvasY, sm, store) {
   const events = store.getEventsForRoom(rooms[roomIdx].id);
   return events.find(ev => ev.start.getTime() <= clickedDayMs && clickedDayMs <= ev.end.getTime()) || null;
 }
+
+const _todayMs = (() => { const d = new Date(); d.setHours(0,0,0,0); return d.getTime(); })();
+const _isToday = (day) => day.getTime() === _todayMs;
 
 export function render(ctx, W, H, sm, store, dragState = null, getInterp = null) {
   ctx.clearRect(0, 0, W, H);
@@ -83,8 +86,15 @@ function _drawGrid(ctx, W, H, sm, store, dragState, getInterp) {
     if (roomIdx >= rooms.length) {continue;}
     const rowTop = HEADER_H + ri * CELL_H - sm.rowOffset;
 
-    ctx.fillStyle = (roomIdx % 2 === 0) ? '#ffffff' : '#f8f8f8';
-    ctx.fillRect(ROOM_COL_W, rowTop, W - ROOM_COL_W, CELL_H);
+    const baseColor = (roomIdx % 2 === 0) ? '#ffffff' : '#f8f8f8';
+    const todayColor = (roomIdx % 2 === 0) ? '#e8eaf6' : '#e0e3f0';
+    for (let ci = 0; ci < visibleColCount; ci++) {
+      const dayIdx = sm.firstColIndex + ci;
+      const colLeft = ROOM_COL_W + ci * CELL_W - sm.colOffset;
+      const isToday = dayIdx >= 0 && dayIdx < sm.windowDays.length && _isToday(sm.windowDays[dayIdx]);
+      ctx.fillStyle = isToday ? todayColor : baseColor;
+      ctx.fillRect(colLeft, rowTop, CELL_W, CELL_H);
+    }
 
     _drawEvents(ctx, W, sm, store.getEventsForRoom(rooms[roomIdx].id), rowTop, dragId, getInterp, rooms, overlays);
 
@@ -219,16 +229,18 @@ function _drawHeader(ctx, W, sm) {
     const day = sm.windowDays[dayIdx];
     const colLeft  = ROOM_COL_W + ci * CELL_W - sm.colOffset;
     const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+    const isToday = _isToday(day);
 
-    ctx.fillStyle = isWeekend ? '#ffcdd2' : '#c5cae9';
+    ctx.fillStyle = isToday ? '#9fa8da' : (isWeekend ? '#ffcdd2' : '#c5cae9');
     ctx.fillRect(colLeft, 0, CELL_W, HEADER_H);
     ctx.strokeStyle = '#9fa8da';
     ctx.strokeRect(colLeft, 0, CELL_W, HEADER_H);
 
+    const yyyy = day.getFullYear();
     const mm = String(day.getMonth() + 1).padStart(2, '0');
     const dd = String(day.getDate()).padStart(2, '0');
     ctx.fillStyle = '#1a237e';
-    ctx.fillText(`${DAYS_OF_WEEK[day.getDay()]} ${mm}/${dd}`, colLeft + 4, HEADER_H / 2);
+    ctx.fillText(`${yyyy}-${mm}-${dd}`, colLeft + 4, HEADER_H / 2);
   }
 }
 

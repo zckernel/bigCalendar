@@ -3,6 +3,8 @@ export const CELL_H       = 25;
 export const HEADER_H     = 35;
 export const ROOM_COL_W   = 120;
 export const BUFFER_DAYS  = 30;
+export const FETCH_RANGE_DAYS = 1000;
+export const TOOLBAR_H = 40;
 export const EVENT_PAD    = 3;
 export const DAYS_OF_WEEK = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 

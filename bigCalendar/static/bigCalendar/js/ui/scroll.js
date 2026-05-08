@@ -24,6 +24,11 @@ export class ScrollManager {
     this._vscrollInner.style.height = (n * CELL_H + HEADER_H) + 'px';
   }
 
+  scrollToToday() {
+    this._buildWindow();
+    this._onScroll();
+  }
+
   resize(W, H) {
     this.W = W;
     this.H = H;
@@ -46,7 +51,7 @@ export class ScrollManager {
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const total = BUFFER_DAYS + this.visibleCols() + BUFFER_DAYS;
     this.windowDays = Array.from({ length: total }, (_, i) => addDays(today, i - BUFFER_DAYS));
-    this.offsetX = BUFFER_DAYS * CELL_W;
+    this.offsetX = (BUFFER_DAYS - 3) * CELL_W;
   }
 
   scroll(dx, dy) {

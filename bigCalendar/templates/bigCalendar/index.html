@@ -7,10 +7,24 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { overflow: hidden; overscroll-behavior: none; background: #f0f0f0; font-family: monospace; }
+    #toolbar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 40px;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      padding: 0 8px;
+      gap: 8px;
+      z-index: 50;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+    }
     #wrapper {
-      position: relative;
+      position: fixed;
+      top: 40px;
+      left: 0;
       width: 100vw;
-      height: 100vh;
+      height: calc(100vh - 40px);
       overflow: hidden;
       cursor: grab;
       touch-action: none;
@@ -60,6 +74,16 @@
     #type-popup .btn-booked      { background: #1E88E5; color: #fff; }
     #type-popup .btn-maintenance { background: #E53935; color: #fff; }
     #type-popup .btn-empty       { background: #FDD835; color: #333; }
+    #today-btn {
+      padding: 5px 14px;
+      background: #3f51b5;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      font: bold 12px monospace;
+      cursor: pointer;
+    }
+    #today-btn:hover { background: #283593; }
     #conflict-toast {
       position: fixed;
       top: 12px;
@@ -83,6 +107,9 @@
   <canvas id="canvas"></canvas>
   <canvas id="drag-canvas"></canvas>
   <div id="vscroll"><div id="vscroll-inner"></div></div>
+</div>
+<div id="toolbar">
+  <button id="today-btn">Today</button>
 </div>
 <div id="conflict-toast">Event modified by another user — drag cancelled</div>
 <div id="type-popup">
