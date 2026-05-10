@@ -56,6 +56,11 @@ function hidePopup() {
   popup._targetEvent = null;
 }
 
+const _loader = document.getElementById('loader');
+let _fetchCount = 0;
+function _startFetch() { if (++_fetchCount === 1) { _loader?.classList.add('visible'); } }
+function _endFetch()   { if (--_fetchCount === 0) { _loader?.classList.remove('visible'); } }
+
 const _conflictToast = document.getElementById('conflict-toast');
 let _toastTimer = null;
 function showConflictToast() {
@@ -93,10 +98,45 @@ document.addEventListener('mousedown', (e) => {
 // ── lazy loading ─────────────────────────────────────────────────────────────
 
 const _DAY = 86400000;
-let _loadedStart = null;
-let _loadedEnd   = null;
-let _fetchingLeft  = false;
-let _fetchingRight = false;
+// [{s, e}] ms timestamps, sorted by s, non-overlapping — actual loaded ranges
+let _loaded = [];
+
+function _addRange(start, end) {
+  const entry = {s: start.getTime(), e: end.getTime()};
+  const sorted = [..._loaded, entry].sort((a, b) => a.s - b.s);
+  const out = [];
+  for (const r of sorted) {
+    if (out.length && r.s <= out[out.length - 1].e) {
+      out[out.length - 1].e = Math.max(out[out.length - 1].e, r.e);
+    } else { out.push({s: r.s, e: r.e}); }
+  }
+  _loaded = out;
+}
+
+function _coveredAt(d) {
+  const t = d.getTime();
+  return _loaded.some(r => r.s <= t && r.e >= t);
+}
+
+// End of the rightmost interval whose start ≤ d (how far right coverage goes at/before d)
+function _rightCovEdge(d) {
+  const t = d.getTime();
+  let best = null;
+  for (const r of _loaded) {
+    if (r.s <= t && (best === null || r.e > best)) { best = r.e; }
+  }
+  return best; // ms or null
+}
+
+// Start of the leftmost interval whose end ≥ d (how far left coverage goes at/after d)
+function _leftCovEdge(d) {
+  const t = d.getTime();
+  let best = null;
+  for (const r of _loaded) {
+    if (r.e >= t && (best === null || r.s < best)) { best = r.s; }
+  }
+  return best; // ms or null
+}
 
 function _makeDate(days) {
   const d = new Date(); d.setHours(0, 0, 0, 0);
@@ -104,48 +144,91 @@ function _makeDate(days) {
   return d;
 }
 
-async function _fetchAndMerge(start, end, direction) {
-  const events = await api.fetchEvents(start, end);
-  store.mergeEvents(events);
-  if (!_loadedStart || start < _loadedStart) { _loadedStart = start; }
-  if (!_loadedEnd   || end   > _loadedEnd)   { _loadedEnd   = end;   }
-
-  const rangeMs = _loadedEnd - _loadedStart;
-  const maxMs   = EVICT_RANGE_DAYS * _DAY;
-  if (rangeMs > maxMs) {
-    const excess = rangeMs - maxMs;
-    if (direction === 'right') {
-      const cutoff = new Date(_loadedStart.getTime() + excess);
-      store.evictBefore(cutoff);
-      _loadedStart = cutoff;
-    } else {
-      const cutoff = new Date(_loadedEnd.getTime() - excess);
-      store.evictAfter(cutoff);
-      _loadedEnd = cutoff;
-    }
+async function _fetchAndMerge(start, end, signal) {
+  _startFetch();
+  try {
+    const events = await api.fetchEvents(start, end, signal);
+    store.mergeEvents(events);
+    _addRange(start, end);
+    scheduleRender();
+  } catch (e) {
+    if (e.name !== 'AbortError') { throw e; }
+  } finally {
+    _endFetch();
   }
-
-  scheduleRender();
 }
 
+function _evictFarData() {
+  if (!_loaded.length) { return; }
+  const days = sm.windowDays;
+  const midIdx = Math.min(sm.firstColIndex + Math.floor(sm.visibleCols() / 2), days.length - 1);
+  const mid = days[midIdx];
+  if (!mid) { return; }
+  const half = (EVICT_RANGE_DAYS / 2) * _DAY;
+  const lc = mid.getTime() - half;
+  const rc = mid.getTime() + half;
+  _loaded = _loaded.map(r => ({s: Math.max(r.s, lc), e: Math.min(r.e, rc)})).filter(r => r.s < r.e);
+  store.evictBefore(new Date(lc));
+  store.evictAfter(new Date(rc));
+}
+
+let _abortLeft  = null;
+let _abortRight = null;
+let _rightGen = 0;
+let _leftGen  = 0;
+let _fetchingRightEnd   = null; // fetchEnd of the in-flight right fetch
+let _fetchingLeftStart  = null; // fetchStart of the in-flight left fetch
+let _initialized = false;
+
 function maybePrefetch() {
-  if (!_loadedStart || !_loadedEnd) { return; }
+  _evictFarData();
   const days = sm.windowDays;
   const first = days[sm.firstColIndex];
   const last  = days[Math.min(sm.firstColIndex + sm.visibleCols(), days.length - 1)];
   if (!first || !last) { return; }
 
-  if (!_fetchingLeft && (first - _loadedStart) / _DAY < PREFETCH_THRESHOLD) {
-    _fetchingLeft = true;
-    const end   = new Date(_loadedStart);
-    const start = new Date(_loadedStart.getTime() - CHUNK_DAYS * _DAY);
-    _fetchAndMerge(start, end, 'left').finally(() => { _fetchingLeft = false; });
+  if (_abortRight && _fetchingRightEnd && last.getTime() > _fetchingRightEnd.getTime()) {
+    _abortRight.abort(); _abortRight = null; _fetchingRightEnd = null; _rightGen++;
   }
-  if (!_fetchingRight && (_loadedEnd - last) / _DAY < PREFETCH_THRESHOLD) {
-    _fetchingRight = true;
-    const start = new Date(_loadedEnd);
-    const end   = new Date(_loadedEnd.getTime() + CHUNK_DAYS * _DAY);
-    _fetchAndMerge(start, end, 'right').finally(() => { _fetchingRight = false; });
+  if (_abortLeft && _fetchingLeftStart && first.getTime() < _fetchingLeftStart.getTime()) {
+    _abortLeft.abort(); _abortLeft = null; _fetchingLeftStart = null; _leftGen++;
+  }
+
+  // Only one fetch at a time — no cross-cancellation in start blocks
+  if (_abortRight || _abortLeft) { return; }
+  if (!_initialized) { return; }
+
+  const rEdge = _rightCovEdge(last);
+  const lEdge = _leftCovEdge(first);
+  const rDays = rEdge !== null ? (rEdge - last.getTime()) / _DAY : -Infinity;
+  const lDays = lEdge !== null ? (first.getTime() - lEdge) / _DAY : -Infinity;
+
+  if (rDays < PREFETCH_THRESHOLD) {
+    const ctrl = new AbortController();
+    _abortRight = ctrl;
+    const gen = ++_rightGen;
+    const farRight = rEdge === null || (last.getTime() - rEdge) / _DAY > CHUNK_DAYS;
+    const fetchStart = farRight
+      ? new Date(last.getTime() - CHUNK_DAYS * _DAY / 2)
+      : new Date(rEdge);
+    const fetchEnd = new Date(fetchStart.getTime() + CHUNK_DAYS * _DAY);
+    _fetchingRightEnd = fetchEnd;
+    _fetchAndMerge(fetchStart, fetchEnd, ctrl.signal).finally(() => {
+      if (_rightGen === gen) { _abortRight = null; _fetchingRightEnd = null; maybePrefetch(); }
+    });
+  } else if (lDays < PREFETCH_THRESHOLD) {
+    const ctrl = new AbortController();
+    _abortLeft = ctrl;
+    const gen = ++_leftGen;
+    const farLeft = lEdge === null || (lEdge - first.getTime()) / _DAY > CHUNK_DAYS;
+    const fetchEnd = farLeft
+      ? new Date(first.getTime() + CHUNK_DAYS * _DAY / 2)
+      : new Date(lEdge);
+    const fetchStart = new Date(fetchEnd.getTime() - CHUNK_DAYS * _DAY);
+    _fetchingLeftStart = fetchStart;
+    _fetchAndMerge(fetchStart, fetchEnd, ctrl.signal).finally(() => {
+      if (_leftGen === gen) { _abortLeft = null; _fetchingLeftStart = null; maybePrefetch(); }
+    });
   }
 }
 
@@ -156,22 +239,24 @@ async function init() {
   window.addEventListener('resize', resize);
   window.addEventListener('orientationchange', () => setTimeout(resize, 100));
 
-  const start = _makeDate(-INITIAL_LOAD_DAYS);
-  const end   = _makeDate(+INITIAL_LOAD_DAYS);
-
-  const [rooms, events] = await Promise.all([
-    api.fetchRooms(),
-    api.fetchEvents(start, end),
-  ]);
+  _startFetch();
+  const rooms = await api.fetchRooms().finally(() => _endFetch());
 
   store.setRooms(rooms);
-  store.setEvents(events);
-  _loadedStart = start;
-  _loadedEnd   = end;
   sm.setNumRooms(rooms.length);
   scheduleRender();
+  _initialized = true;
+  maybePrefetch();
 
-  document.getElementById('today-btn').addEventListener('click', () => sm.scrollToToday());
+  document.getElementById('today-btn').addEventListener('click', async () => {
+    const today = _makeDate(0);
+    if (!_coveredAt(today)) {
+      const start = new Date(today.getTime() - INITIAL_LOAD_DAYS * _DAY);
+      const end   = new Date(today.getTime() + INITIAL_LOAD_DAYS * _DAY);
+      await _fetchAndMerge(start, end);
+    }
+    sm.scrollToToday();
+  });
 
   initDrag(sm, canvas, dragCanvas, scheduleRender, (ev, clientX, clientY) => {
     showPopup(clientX, clientY, ev);

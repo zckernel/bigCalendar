@@ -84,6 +84,18 @@
       cursor: pointer;
     }
     #today-btn:hover { background: #283593; }
+    #loader {
+      width: 16px;
+      height: 16px;
+      border: 2px solid #c5cae9;
+      border-top-color: #3f51b5;
+      border-radius: 50%;
+      opacity: 0;
+      transition: opacity .15s;
+      animation: spin .7s linear infinite;
+    }
+    #loader.visible { opacity: 1; }
+    @keyframes spin { to { transform: rotate(360deg); } }
     #conflict-toast {
       position: fixed;
       top: 12px;
@@ -110,6 +122,7 @@
 </div>
 <div id="toolbar">
   <button id="today-btn">Today</button>
+  <div id="loader"></div>
 </div>
 <div id="conflict-toast">Event modified by another user — drag cancelled</div>
 <div id="type-popup">

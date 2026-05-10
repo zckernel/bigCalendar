@@ -7,8 +7,8 @@ export async function fetchRooms() {
   return data.rooms;
 }
 
-export async function fetchEvents(start, end) {
-  const res = await fetch(`${BASE}/api/events/?start=${_fmt(start)}&end=${_fmt(end)}`);
+export async function fetchEvents(start, end, signal) {
+  const res = await fetch(`${BASE}/api/events/?start=${_fmt(start)}&end=${_fmt(end)}`, { signal });
   const data = await res.json();
   return data.events;
 }
