@@ -1,9 +1,10 @@
 import asyncio
 import json
+import orjson
 from datetime import date, datetime, timezone
 from functools import wraps
 from django.conf import settings
-from django.http import JsonResponse, StreamingHttpResponse
+from django.http import HttpResponse, JsonResponse, StreamingHttpResponse
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET
@@ -68,7 +69,7 @@ def api_events(request):
         return JsonResponse({'error': 'start and end required (YYYY-MM-DD)'}, status=400)
 
     events = event_service.get_events_for_range(start, end)
-    return JsonResponse({'events': events})
+    return HttpResponse(orjson.dumps({'events': events}), content_type='application/json')
 
 
 @csrf_exempt

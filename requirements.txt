@@ -6,3 +6,4 @@ uvicorn[standard]==0.34.3
 watchfiles==1.0.5
 redis==7.4.0
 mysqlclient==2.2.8
+orjson==3.10.18
