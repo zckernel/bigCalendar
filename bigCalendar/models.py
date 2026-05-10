@@ -26,6 +26,7 @@ class Event(models.Model):
     class Meta:
         db_table = 'calendar_event'
         indexes = [
+            models.Index(fields=['event_start', 'event_end']),
             models.Index(fields=['room', 'event_start', 'event_end']),
             models.Index(fields=['updated_at']),
         ]
