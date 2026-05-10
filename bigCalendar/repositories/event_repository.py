@@ -1,5 +1,8 @@
+from datetime import timedelta
 from django.db import transaction
 from bigCalendar.models import Event
+
+_MAX_EVENT_DAYS = 7
 
 
 def _event_to_dict(event):
@@ -15,7 +18,11 @@ def _event_to_dict(event):
 def get_by_date_range(date_start, date_end):
     return list(
         Event.objects
-        .filter(event_start__lte=date_end, event_end__gte=date_start)
+        .filter(
+            event_start__gte=date_start - timedelta(days=_MAX_EVENT_DAYS),
+            event_start__lte=date_end,
+            event_end__gte=date_start,
+        )
         .values('id', 'room_id', 'event_type', 'event_start', 'event_end')
     )
 
