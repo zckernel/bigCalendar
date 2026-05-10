@@ -68,8 +68,14 @@ def api_events(request):
     except (KeyError, ValueError):
         return JsonResponse({'error': 'start and end required (YYYY-MM-DD)'}, status=400)
 
+    import time
+    t0 = time.perf_counter()
     events = event_service.get_events_for_range(start, end)
-    return HttpResponse(orjson.dumps({'events': events}), content_type='application/json')
+    t1 = time.perf_counter()
+    body = orjson.dumps({'events': events})
+    t2 = time.perf_counter()
+    print(f'[events] db={t1-t0:.3f}s serial={t2-t1:.3f}s rows={len(events)}', flush=True)
+    return HttpResponse(body, content_type='application/json')
 
 
 @csrf_exempt
